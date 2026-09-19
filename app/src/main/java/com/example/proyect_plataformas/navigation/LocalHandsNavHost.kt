@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.proyect_plataformas.ui.screens.HomeScreen
 
 @Composable
 fun LocalHandsNavHost(
@@ -27,11 +27,13 @@ fun LocalHandsNavHost(
     ) {
         composable(Route.Home.route) {
             HomeScreen(
-                onElectricityClick = {
+                onCategoryClick = {
                     navController.navigate(Route.Results.route)
                 },
                 onRateServiceClick = {
-                    navController.navigate(Route.RateService.create("mock-service-1"))
+                    navController.navigate(
+                        Route.RateService.create("mock-service-1")
+                    )
                 }
             )
         }
@@ -59,39 +61,6 @@ fun LocalHandsNavHost(
             arguments = listOf(navArgument("serviceId") { defaultValue = "" })
         ) {
             PlaceholderScreen("Calificar servicio")
-        }
-    }
-}
-
-@Composable
-private fun HomeScreen(
-    onElectricityClick: () -> Unit,
-    onRateServiceClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "LocalHands",
-            style = MaterialTheme.typography.headlineLarge
-        )
-
-        Button(
-            modifier = Modifier.padding(top = 24.dp),
-            onClick = onElectricityClick
-        ) {
-            Text("Buscar electricistas")
-        }
-
-        Button(
-            modifier = Modifier.padding(top = 12.dp),
-            onClick = onRateServiceClick
-        ) {
-            Text("Calificar servicio")
         }
     }
 }
