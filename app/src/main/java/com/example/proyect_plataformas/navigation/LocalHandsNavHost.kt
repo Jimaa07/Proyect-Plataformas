@@ -17,7 +17,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.ui.screens.HomeScreen
+import com.example.proyect_plataformas.ui.screens.profile.ProfileScreen
 import com.example.proyect_plataformas.ui.screens.rating.RateServiceScreen
+import com.example.proyect_plataformas.ui.screens.request.RequestServiceScreen
 import com.example.proyect_plataformas.ui.screens.results.ResultsScreen
 
 @Composable
@@ -28,6 +30,7 @@ fun LocalHandsNavHost(
         navController = navController,
         startDestination = Route.Home.route
     ) {
+
         composable(Route.Home.route) {
             HomeScreen(
                 onCategoryClick = {
@@ -63,20 +66,36 @@ fun LocalHandsNavHost(
                 }
             )
         ) { backStackEntry ->
-            val providerId = backStackEntry.arguments
-                ?.getString("providerId")
-                .orEmpty()
 
-            val provider = MockLocalHandsData.getProviderById(
-                providerId = providerId
-            )
+            val providerId =
+                backStackEntry.arguments
+                    ?.getString("providerId")
+                    .orEmpty()
 
-            val providerName = provider?.name
-                ?: "Prestador no encontrado"
+            val provider =
+                MockLocalHandsData.getProviderById(
+                    providerId = providerId
+                )
 
-            PlaceholderScreen(
-                title = "Perfil de $providerName"
-            )
+            if (provider != null) {
+                ProfileScreen(
+                    provider = provider,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onRequestServiceClick = {
+                        navController.navigate(
+                            Route.RequestService.create(
+                                provider.id
+                            )
+                        )
+                    }
+                )
+            } else {
+                PlaceholderScreen(
+                    title = "Prestador no encontrado"
+                )
+            }
         }
 
         composable(
@@ -86,10 +105,33 @@ fun LocalHandsNavHost(
                     defaultValue = ""
                 }
             )
-        ) {
-            PlaceholderScreen(
-                title = "Solicitar servicio"
-            )
+        ) { backStackEntry ->
+
+            val providerId =
+                backStackEntry.arguments
+                    ?.getString("providerId")
+                    .orEmpty()
+
+            val provider =
+                MockLocalHandsData.getProviderById(
+                    providerId = providerId
+                )
+
+            if (provider != null) {
+                RequestServiceScreen(
+                    provider = provider,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onRequestSubmitted = {
+                        navController.popBackStack()
+                    }
+                )
+            } else {
+                PlaceholderScreen(
+                    title = "Prestador no encontrado"
+                )
+            }
         }
 
         composable(
@@ -100,9 +142,11 @@ fun LocalHandsNavHost(
                 }
             )
         ) { backStackEntry ->
-            val serviceId = backStackEntry.arguments
-                ?.getString("serviceId")
-                .orEmpty()
+
+            val serviceId =
+                backStackEntry.arguments
+                    ?.getString("serviceId")
+                    .orEmpty()
 
             val completedService =
                 MockLocalHandsData.getCompletedServiceById(
