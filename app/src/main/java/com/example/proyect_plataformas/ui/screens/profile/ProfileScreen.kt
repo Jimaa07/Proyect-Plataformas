@@ -1,7 +1,6 @@
 package com.example.proyect_plataformas.ui.screens.profile
 
-
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -38,10 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.proyect_plataformas.data.model.CommunityReview
 import com.example.proyect_plataformas.data.model.Provider
+import com.example.proyect_plataformas.ui.theme.LocalHandsStar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,40 +55,61 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "Perfil profesional",
+                        text = "LocalHands",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
                     )
                 },
+
                 navigationIcon = {
                     IconButton(
                         onClick = onBackClick
                     ) {
                         Text(
                             text = "←",
-                            style = MaterialTheme.typography.headlineSmall
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+
+                actions = {
+                    IconButton(
+                        onClick = {}
+                    ) {
+                        Text(
+                            text = "○",
+                            fontSize = 22.sp,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
             )
         }
     ) { innerPadding ->
+
         ProfileContent(
             provider = provider,
             innerPadding = innerPadding,
             contactMessage = contactMessage,
+
+            onWhatsAppClick = {
+                contactMessage =
+                    "Contacto mock por WhatsApp: ${provider.contactPhone}"
+            },
+
             onPhoneClick = {
                 contactMessage =
                     "Contacto mock: llamar a ${provider.contactPhone}"
             },
-            onEmailClick = {
-                contactMessage =
-                    "Contacto mock: escribir a ${provider.contactEmail}"
-            },
+
             onRequestServiceClick = onRequestServiceClick
         )
     }
@@ -99,119 +120,56 @@ private fun ProfileContent(
     provider: Provider,
     innerPadding: PaddingValues,
     contactMessage: String?,
+    onWhatsAppClick: () -> Unit,
     onPhoneClick: () -> Unit,
-    onEmailClick: () -> Unit,
     onRequestServiceClick: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
+
         contentPadding = PaddingValues(
-            start = 20.dp,
-            top = 20.dp,
-            end = 20.dp,
-            bottom = 32.dp
+            start = 14.dp,
+            top = 12.dp,
+            end = 14.dp,
+            bottom = 28.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
 
         item {
-            ProviderHeader(
-                provider = provider
+            ProviderMainCard(
+                provider = provider,
+                onRequestServiceClick = onRequestServiceClick,
+                onWhatsAppClick = onWhatsAppClick,
+                onPhoneClick = onPhoneClick
             )
         }
 
-        item {
-            RatingSection(
-                provider = provider
-            )
-        }
-
-        item {
-            ProfileSection(
-                title = "Experiencia"
-            ) {
-                Text(
-                    text = "${provider.experienceYears} años de experiencia",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-
-        item {
-            ProfileSection(
-                title = "Zonas de cobertura"
-            ) {
-                CoverageZones(
-                    zones = provider.coverageZones.ifEmpty {
-                        listOf(provider.zone)
-                    }
-                )
-            }
-        }
-
-        item {
-            ProfileSection(
-                title = "Descripción profesional"
-            ) {
-                Text(
-                    text = provider.description.ifBlank {
-                        "Profesional de LocalHands."
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        item {
-            ProfileSection(
-                title = "Contacto"
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+        if (contactMessage != null) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onPhoneClick,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Llamar")
-                        }
-
-                        OutlinedButton(
-                            onClick = onEmailClick,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Correo")
-                        }
-                    }
-
-                    if (contactMessage != null) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = contactMessage,
-                                modifier = Modifier.padding(12.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
+                    Text(
+                        text = contactMessage,
+                        modifier = Modifier.padding(10.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
                 }
             }
         }
 
         item {
             Text(
-                text = "Reseñas comunitarias",
-                style = MaterialTheme.typography.titleLarge,
+                text = "👍 Recomendado por vecinos",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -219,7 +177,7 @@ private fun ProfileContent(
         if (provider.reviews.isEmpty()) {
             item {
                 Text(
-                    text = "Este profesional todavía no tiene reseñas visibles.",
+                    text = "Este profesional todavía no tiene reseñas.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -228,212 +186,289 @@ private fun ProfileContent(
             items(
                 items = provider.reviews
             ) { review ->
-                ReviewCard(
+                CommunityReviewCard(
                     review = review
                 )
             }
         }
+    }
+}
 
-        item {
+@Composable
+private fun ProviderMainCard(
+    provider: Provider,
+    onRequestServiceClick: () -> Unit,
+    onWhatsAppClick: () -> Unit,
+    onPhoneClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+
+        shape = RoundedCornerShape(12.dp),
+
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline
+        ),
+
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            Box(
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Surface(
+                    modifier = Modifier.size(92.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = providerInitials(provider.name),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            AvailabilityBadge(
+                isAvailable = provider.isAvailable
+            )
+
+            Text(
+                text = provider.name,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Text(
+                text = "⚡ ${provider.specialty}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            ProviderStats(
+                provider = provider
+            )
+
+            Spacer(
+                modifier = Modifier.height(2.dp)
+            )
+
+            Text(
+                text = provider.description.ifBlank {
+                    "Profesional de LocalHands."
+                },
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
             Spacer(
                 modifier = Modifier.height(4.dp)
             )
 
             Button(
                 onClick = onRequestServiceClick,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Solicitar servicio")
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProviderHeader(
-    provider: Provider
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-
-        // Avatar mock. No backend ni imágenes remotas todavía.
-        Surface(
-            modifier = Modifier.size(96.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer
-        ) {
-            Box(
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
             ) {
                 Text(
-                    text = providerInitials(provider.name),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.Bold
+                    text = "▣  Solicitar servicio"
                 )
             }
-        }
 
-        AvailabilityBadge(
-            isAvailable = provider.isAvailable
-        )
-
-        Text(
-            text = provider.name,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            text = provider.specialty,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-}
-
-@Composable
-private fun RatingSection(
-    provider: Provider
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "★",
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color(0xFFFFA000)
-            )
-
-            Spacer(
-                modifier = Modifier.width(8.dp)
-            )
-
-            Text(
-                text = provider.rating.toString(),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(
-                modifier = Modifier.width(8.dp)
-            )
-
-            Text(
-                text = "(${provider.reviewCount} reseñas)",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun CoverageZones(
-    zones: List<String>
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        zones.forEach { zone ->
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.secondaryContainer
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = zone,
-                    modifier = Modifier.padding(
-                        horizontal = 12.dp,
-                        vertical = 8.dp
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+
+                OutlinedButton(
+                    onClick = onWhatsAppClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = "▣ WhatsApp",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onPhoneClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = "☎ Llamar",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ProfileSection(
-    title: String,
-    content: @Composable () -> Unit
+private fun ProviderStats(
+    provider: Provider
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
 
-        content()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Text(
+                text = "★",
+                color = LocalHandsStar,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = " ${provider.rating}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = " (${provider.reviewCount} reseñas)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = "   ⌖ ${providerZones(provider)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "▣ ${provider.experienceYears} años exp.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
 @Composable
-private fun ReviewCard(
+private fun CommunityReviewCard(
     review: CommunityReview
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+
+        shape = RoundedCornerShape(10.dp),
+
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
+
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline
+        ),
+
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
+            defaultElevation = 1.dp
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
+
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = review.reviewerName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+
+                Surface(
+                    modifier = Modifier.size(34.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = reviewerInitial(review.reviewerName),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
+                ) {
+                    Text(
+                        text = review.reviewerName,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Text(
+                        text = review.date,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Text(
-                    text = "★ ${review.rating}/5",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color(0xFFFFA000)
+                    text = "★".repeat(review.rating),
+                    color = LocalHandsStar,
+                    style = MaterialTheme.typography.labelMedium
                 )
             }
 
             Text(
-                text = review.comment,
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Text(
-                text = review.date,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "“${review.comment}”",
+                style = MaterialTheme.typography.bodyMedium,
+                fontStyle = FontStyle.Italic
             )
         }
     }
@@ -443,39 +478,59 @@ private fun ReviewCard(
 private fun AvailabilityBadge(
     isAvailable: Boolean
 ) {
-    val backgroundColor = if (isAvailable) {
-        Color(0xFFD2F4EA)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
+    val background =
+        if (isAvailable) {
+            Color(0xFF45B95C)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        }
 
-    val contentColor = if (isAvailable) {
-        Color(0xFF00513F)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    val text = if (isAvailable) {
-        "DISPONIBLE"
-    } else {
-        "NO DISPONIBLE"
-    }
+    val foreground =
+        if (isAvailable) {
+            Color.White
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
 
     Surface(
-        shape = RoundedCornerShape(50),
-        color = backgroundColor
+        color = background,
+        shape = RoundedCornerShape(20.dp)
     ) {
         Text(
-            text = text,
+            text = if (isAvailable) {
+                "● Disponible"
+            } else {
+                "No disponible"
+            },
+
             modifier = Modifier.padding(
-                horizontal = 12.dp,
-                vertical = 6.dp
+                horizontal = 10.dp,
+                vertical = 4.dp
             ),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = contentColor
+
+            style = MaterialTheme.typography.labelSmall,
+            color = foreground,
+            fontWeight = FontWeight.Medium
         )
     }
+}
+
+private fun providerZones(
+    provider: Provider
+): String {
+    val zones =
+        provider.coverageZones.ifEmpty {
+            listOf(provider.zone)
+        }
+
+    return zones
+        .map {
+            it.replace(
+                "Zona ",
+                ""
+            )
+        }
+        .joinToString(", ")
 }
 
 private fun providerInitials(
@@ -486,7 +541,19 @@ private fun providerInitials(
         .split(" ")
         .filter { it.isNotBlank() }
         .take(2)
-        .joinToString("") { word ->
-            word.first().uppercaseChar().toString()
+        .mapNotNull {
+            it.firstOrNull()?.uppercaseChar()
         }
+        .joinToString("")
+}
+
+private fun reviewerInitial(
+    name: String
+): String {
+    return name
+        .trim()
+        .firstOrNull()
+        ?.uppercaseChar()
+        ?.toString()
+        ?: "?"
 }
