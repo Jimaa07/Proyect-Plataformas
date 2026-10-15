@@ -98,7 +98,8 @@ fun ProviderCard(
                     }
 
                     SpecialtyBadge(
-                        specialty = provider.specialty
+                        specialty = provider.specialty,
+                        symbol = provider.category.symbol
                     )
 
                     Row(
@@ -176,7 +177,8 @@ private fun ProviderAvatar(
 
 @Composable
 private fun SpecialtyBadge(
-    specialty: String
+    specialty: String,
+    symbol: String
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -191,7 +193,7 @@ private fun SpecialtyBadge(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = "⚡",
+                text = symbol,
                 style = MaterialTheme.typography.labelSmall
             )
 
@@ -275,4 +277,4 @@ private fun providerInitials(
             word.firstOrNull()?.uppercaseChar()
         }
         .joinToString("")
-}
+}

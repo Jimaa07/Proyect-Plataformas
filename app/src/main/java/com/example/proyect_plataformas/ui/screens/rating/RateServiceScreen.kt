@@ -23,48 +23,35 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.proyect_plataformas.data.model.CompletedService
 import com.example.proyect_plataformas.ui.components.StarRatingSelector
+import com.example.proyect_plataformas.ui.state.RatingFormState
+import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RateServiceScreen(
     service: CompletedService,
+    form: RatingFormState,
     onBackClick: () -> Unit,
-    onRatingSubmitted: () -> Unit
+    onStarsSelected: (Int) -> Unit,
+    onCommentChanged: (String) -> Unit,
+    onSubmitClick: () -> Unit,
+    onFinished: () -> Unit
 ) {
-    var selectedStars by rememberSaveable {
-        mutableIntStateOf(0)
-    }
-
-    var comment by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var showConfirmation by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    val isFormValid = isRatingFormValid(
-        stars = selectedStars,
-        comment = comment
-    )
-
+    // Las estrellas, el comentario y la validación viven en el ViewModel;
+    // esta pantalla solo los muestra y avisa cada cambio.
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "LocalHands",
+                        text = "Calificar servicio",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -84,28 +71,20 @@ fun RateServiceScreen(
     ) { innerPadding ->
         RateServiceContent(
             service = service,
-            selectedStars = selectedStars,
-            comment = comment,
-            isFormValid = isFormValid,
-            onStarsSelected = { stars ->
-                selectedStars = stars
-            },
-            onCommentChanged = { newComment ->
-                comment = newComment
-            },
-            onSubmitClick = {
-                showConfirmation = true
-            },
+            selectedStars = form.stars,
+            comment = form.comment,
+            isFormValid = form.isValid && !form.submitted,
+            onStarsSelected = onStarsSelected,
+            onCommentChanged = onCommentChanged,
+            onSubmitClick = onSubmitClick,
             innerPadding = innerPadding
         )
     }
 
-    if (showConfirmation) {
+    // El ViewModel ya guardó la reseña; el diálogo solo confirma y regresa.
+    if (form.submitted) {
         RatingConfirmationDialog(
-            onConfirm = {
-                showConfirmation = false
-                onRatingSubmitted()
-            }
+            onConfirm = onFinished
         )
     }
 }
@@ -305,5 +284,30 @@ private fun reviewSupportingText(
                 "$currentLength/$MINIMUM_REVIEW_LENGTH"
     } else {
         "Comentario válido"
+    }
+}
+@Preview(showBackground = true, heightDp = 800)
+@Composable
+private fun RateServiceScreenPreview() {
+    ProyectplataformasTheme {
+        RateServiceScreen(
+            service = CompletedService(
+                id = "req-1",
+                providerId = "carlos-mendez",
+                providerName = "Carlos Méndez",
+                serviceDescription = "Reparación de tablero eléctrico",
+                completedDate = "3 de octubre de 2026"
+            ),
+            form = RatingFormState(
+                requestId = "req-1",
+                stars = 4,
+                comment = "Llegó puntual y explicó todo"
+            ),
+            onBackClick = {},
+            onStarsSelected = {},
+            onCommentChanged = {},
+            onSubmitClick = {},
+            onFinished = {}
+        )
     }
 }

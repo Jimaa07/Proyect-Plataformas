@@ -2,14 +2,13 @@ package com.example.proyect_plataformas.ui.screens.profile
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,27 +20,36 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.CommunityReview
 import com.example.proyect_plataformas.data.model.Provider
+import com.example.proyect_plataformas.ui.components.InitialsAvatar
+import com.example.proyect_plataformas.ui.format.starsText
 import com.example.proyect_plataformas.ui.theme.LocalHandsStar
+import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,24 +58,30 @@ fun ProfileScreen(
     onBackClick: () -> Unit,
     onRequestServiceClick: () -> Unit
 ) {
-    var contactMessage by rememberSaveable {
-        mutableStateOf<String?>(null)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // El contacto todavía es simulado: se avisa con un Snackbar en lugar de
+    // ocupar espacio fijo en la pantalla.
+    fun showContactMessage(message: String) {
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
+        }
     }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "LocalHands",
+                        text = "Perfil del profesional",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                 },
-
                 navigationIcon = {
                     IconButton(
                         onClick = onBackClick
@@ -78,39 +92,30 @@ fun ProfileScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                },
-
-                actions = {
-                    IconButton(
-                        onClick = {}
-                    ) {
-                        Text(
-                            text = "○",
-                            fontSize = 22.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             )
+        },
+        // Acción principal anclada abajo: siempre visible y sin competir
+        // con el contenido del perfil.
+        bottomBar = {
+            ProfileActionBar(
+                isAvailable = provider.isAvailable,
+                onWhatsAppClick = {
+                    showContactMessage("WhatsApp con ${provider.name}: ${provider.contactPhone} (simulado)")
+                },
+                onPhoneClick = {
+                    showContactMessage("Llamando a ${provider.contactPhone} (simulado)")
+                },
+                onRequestServiceClick = onRequestServiceClick
+            )
+        },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState)
         }
     ) { innerPadding ->
-
         ProfileContent(
             provider = provider,
-            innerPadding = innerPadding,
-            contactMessage = contactMessage,
-
-            onWhatsAppClick = {
-                contactMessage =
-                    "Contacto mock por WhatsApp: ${provider.contactPhone}"
-            },
-
-            onPhoneClick = {
-                contactMessage =
-                    "Contacto mock: llamar a ${provider.contactPhone}"
-            },
-
-            onRequestServiceClick = onRequestServiceClick
+            innerPadding = innerPadding
         )
     }
 }
@@ -118,56 +123,30 @@ fun ProfileScreen(
 @Composable
 private fun ProfileContent(
     provider: Provider,
-    innerPadding: PaddingValues,
-    contactMessage: String?,
-    onWhatsAppClick: () -> Unit,
-    onPhoneClick: () -> Unit,
-    onRequestServiceClick: () -> Unit
+    innerPadding: PaddingValues
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
-
         contentPadding = PaddingValues(
-            start = 14.dp,
-            top = 12.dp,
-            end = 14.dp,
-            bottom = 28.dp
+            start = 16.dp,
+            top = 8.dp,
+            end = 16.dp,
+            bottom = 16.dp
         ),
-
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
         item {
-            ProviderMainCard(
-                provider = provider,
-                onRequestServiceClick = onRequestServiceClick,
-                onWhatsAppClick = onWhatsAppClick,
-                onPhoneClick = onPhoneClick
+            ProviderHeaderCard(
+                provider = provider
             )
-        }
-
-        if (contactMessage != null) {
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = contactMessage,
-                        modifier = Modifier.padding(10.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
         }
 
         item {
             Text(
-                text = "👍 Recomendado por vecinos",
+                text = "Recomendado por vecinos (${provider.reviews.size})",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold
@@ -195,26 +174,19 @@ private fun ProfileContent(
 }
 
 @Composable
-private fun ProviderMainCard(
-    provider: Provider,
-    onRequestServiceClick: () -> Unit,
-    onWhatsAppClick: () -> Unit,
-    onPhoneClick: () -> Unit
+private fun ProviderHeaderCard(
+    provider: Provider
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-
         shape = RoundedCornerShape(12.dp),
-
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-
         border = BorderStroke(
             width = 1.dp,
             color = MaterialTheme.colorScheme.outline
         ),
-
         elevation = CardDefaults.cardElevation(
             defaultElevation = 1.dp
         )
@@ -223,112 +195,180 @@ private fun ProviderMainCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            Box(
-                contentAlignment = Alignment.BottomCenter
+            // Foto, nombre y especialidad en una fila: ocupa la mitad del alto
+            // que el diseño anterior centrado.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Surface(
-                    modifier = Modifier.size(92.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                InitialsAvatar(
+                    name = provider.name,
+                    size = 68.dp,
+                    textStyle = MaterialTheme.typography.headlineSmall
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = providerInitials(provider.name),
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = provider.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Text(
+                        text = "${provider.category.symbol} ${provider.specialty}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    AvailabilityBadge(
+                        isAvailable = provider.isAvailable
+                    )
                 }
             }
 
-            AvailabilityBadge(
-                isAvailable = provider.isAvailable
-            )
-
-            Text(
-                text = provider.name,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Text(
-                text = "⚡ ${provider.specialty}",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            ProviderStats(
+            ProviderStatsRow(
                 provider = provider
             )
 
-            Spacer(
-                modifier = Modifier.height(2.dp)
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outline
             )
 
             Text(
                 text = provider.description.ifBlank {
                     "Profesional de LocalHands."
                 },
-                modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(
-                modifier = Modifier.height(4.dp)
+            Text(
+                text = "Zonas que cubre: ${providerZones(provider)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
 
-            Button(
-                onClick = onRequestServiceClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp)
-            ) {
+@Composable
+private fun ProviderStatsRow(
+    provider: Provider
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        StatItem(
+            value = "★ ${provider.rating}",
+            label = "calificación",
+            valueColor = LocalHandsStar
+        )
+
+        StatItem(
+            value = provider.reviewCount.toString(),
+            label = "reseñas"
+        )
+
+        StatItem(
+            value = "${provider.experienceYears} años",
+            label = "experiencia"
+        )
+    }
+}
+
+@Composable
+private fun StatItem(
+    value: String,
+    label: String,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = valueColor
+        )
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * Barra inferior del perfil: contacto como botones secundarios pequeños y
+ * "Solicitar servicio" como único botón relleno (acción primaria).
+ */
+@Composable
+private fun ProfileActionBar(
+    isAvailable: Boolean,
+    onWhatsAppClick: () -> Unit,
+    onPhoneClick: () -> Unit,
+    onRequestServiceClick: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp,
+        shadowElevation = 8.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 10.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (!isAvailable) {
                 Text(
-                    text = "▣  Solicitar servicio"
+                    text = "No está disponible hoy. Puedes agendar para otro día.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                ContactButton(
+                    symbol = "💬",
+                    description = "WhatsApp",
+                    onClick = onWhatsAppClick
+                )
 
-                OutlinedButton(
-                    onClick = onWhatsAppClick,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(22.dp),
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary
-                    )
+                ContactButton(
+                    symbol = "☎",
+                    description = "Llamar",
+                    onClick = onPhoneClick
+                )
+
+                Button(
+                    onClick = onRequestServiceClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(24.dp)
                 ) {
                     Text(
-                        text = "▣ WhatsApp",
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = onPhoneClick,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(22.dp),
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(
-                        text = "☎ Llamar",
-                        color = MaterialTheme.colorScheme.primary
+                        text = "Solicitar servicio",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -337,55 +377,26 @@ private fun ProviderMainCard(
 }
 
 @Composable
-private fun ProviderStats(
-    provider: Provider
+private fun ContactButton(
+    symbol: String,
+    description: String,
+    onClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    OutlinedIconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(48.dp)
+            .semantics { contentDescription = description },
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.primary
+        )
     ) {
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Text(
-                text = "★",
-                color = LocalHandsStar,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = " ${provider.rating}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            Text(
-                text = " (${provider.reviewCount} reseñas)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Text(
-                text = "   ⌖ ${providerZones(provider)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "▣ ${provider.experienceYears} años exp.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Text(
+            text = symbol,
+            fontSize = 20.sp,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 
@@ -395,18 +406,14 @@ private fun CommunityReviewCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-
         shape = RoundedCornerShape(10.dp),
-
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-
         border = BorderStroke(
             width = 1.dp,
             color = MaterialTheme.colorScheme.outline
         ),
-
         elevation = CardDefaults.cardElevation(
             defaultElevation = 1.dp
         )
@@ -415,25 +422,23 @@ private fun CommunityReviewCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 Surface(
                     modifier = Modifier.size(34.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center
+                    Column(
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = reviewerInitial(review.reviewerName),
+                            text = review.reviewerName.trim().firstOrNull()?.uppercase() ?: "?",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -459,7 +464,7 @@ private fun CommunityReviewCard(
                 }
 
                 Text(
-                    text = "★".repeat(review.rating),
+                    text = starsText(review.rating),
                     color = LocalHandsStar,
                     style = MaterialTheme.typography.labelMedium
                 )
@@ -478,36 +483,28 @@ private fun CommunityReviewCard(
 private fun AvailabilityBadge(
     isAvailable: Boolean
 ) {
-    val background =
-        if (isAvailable) {
-            Color(0xFF45B95C)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        }
+    val background = if (isAvailable) {
+        Color(0xFF45B95C)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
 
-    val foreground =
-        if (isAvailable) {
-            Color.White
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
+    val foreground = if (isAvailable) {
+        Color.White
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Surface(
         color = background,
         shape = RoundedCornerShape(20.dp)
     ) {
         Text(
-            text = if (isAvailable) {
-                "● Disponible"
-            } else {
-                "No disponible"
-            },
-
+            text = if (isAvailable) "● Disponible" else "No disponible",
             modifier = Modifier.padding(
                 horizontal = 10.dp,
-                vertical = 4.dp
+                vertical = 3.dp
             ),
-
             style = MaterialTheme.typography.labelSmall,
             color = foreground,
             fontWeight = FontWeight.Medium
@@ -518,42 +515,19 @@ private fun AvailabilityBadge(
 private fun providerZones(
     provider: Provider
 ): String {
-    val zones =
-        provider.coverageZones.ifEmpty {
-            listOf(provider.zone)
-        }
-
-    return zones
-        .map {
-            it.replace(
-                "Zona ",
-                ""
-            )
-        }
+    return provider.coverageZones
+        .ifEmpty { listOf(provider.zone) }
         .joinToString(", ")
 }
 
-private fun providerInitials(
-    name: String
-): String {
-    return name
-        .trim()
-        .split(" ")
-        .filter { it.isNotBlank() }
-        .take(2)
-        .mapNotNull {
-            it.firstOrNull()?.uppercaseChar()
-        }
-        .joinToString("")
-}
-
-private fun reviewerInitial(
-    name: String
-): String {
-    return name
-        .trim()
-        .firstOrNull()
-        ?.uppercaseChar()
-        ?.toString()
-        ?: "?"
+@Preview(showBackground = true, heightDp = 800)
+@Composable
+private fun ProfileScreenPreview() {
+    ProyectplataformasTheme {
+        ProfileScreen(
+            provider = MockLocalHandsData.providers.first(),
+            onBackClick = {},
+            onRequestServiceClick = {}
+        )
+    }
 }

@@ -8,50 +8,55 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.ProviderFilter
+import com.example.proyect_plataformas.data.model.ServiceCategory
+import com.example.proyect_plataformas.ui.components.AppBottomBar
+import com.example.proyect_plataformas.ui.components.BottomTab
 import com.example.proyect_plataformas.ui.components.ProviderCard
 import com.example.proyect_plataformas.ui.components.ProviderFilterChip
+import com.example.proyect_plataformas.ui.state.ResultsState
+import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
 
+/**
+ * Lista de profesionales. La categoría, la búsqueda y el filtro los guarda
+ * el ViewModel (ResultsState); esta pantalla solo los muestra y avisa cambios.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResultsScreen(
+    state: ResultsState,
     providers: List<Provider>,
     onBackClick: () -> Unit,
-    onProviderClick: (String) -> Unit
+    onProviderClick: (String) -> Unit,
+    onCategorySelected: (ServiceCategory?) -> Unit,
+    onQueryChanged: (String) -> Unit,
+    onFilterSelected: (ProviderFilter) -> Unit,
+    onClearFilters: () -> Unit,
+    onTabSelected: (BottomTab) -> Unit
 ) {
-    var selectedFilter by rememberSaveable {
-        mutableStateOf(ProviderFilter.TOP_RATED)
-    }
-
-    val displayedProviders = applyProviderFilter(
-        providers = providers,
-        filter = selectedFilter
-    )
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -72,36 +77,27 @@ fun ResultsScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {}
-                    ) {
-                        Text(
-                            text = "○",
-                            fontSize = 22.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             )
         },
-
         bottomBar = {
-            ResultsBottomBar(
-                onHomeClick = onBackClick
+            AppBottomBar(
+                selectedTab = BottomTab.EXPLORE,
+                onTabSelected = onTabSelected
             )
         }
     ) { innerPadding ->
-
         ResultsContent(
-            providers = displayedProviders,
-            selectedFilter = selectedFilter,
-            onFilterSelected = { filter ->
-                selectedFilter = filter
-            },
-            onProviderClick = onProviderClick,
-            innerPadding = innerPadding
+            providers = providers,
+            selectedCategory = state.category,
+            query = state.query,
+            selectedFilter = state.filter,
+            innerPadding = innerPadding,
+            onCategorySelected = onCategorySelected,
+            onQueryChanged = onQueryChanged,
+            onFilterSelected = onFilterSelected,
+            onClearFilters = onClearFilters,
+            onProviderClick = onProviderClick
         )
     }
 }
@@ -109,10 +105,15 @@ fun ResultsScreen(
 @Composable
 private fun ResultsContent(
     providers: List<Provider>,
+    selectedCategory: ServiceCategory?,
+    query: String,
     selectedFilter: ProviderFilter,
+    innerPadding: PaddingValues,
+    onCategorySelected: (ServiceCategory?) -> Unit,
+    onQueryChanged: (String) -> Unit,
     onFilterSelected: (ProviderFilter) -> Unit,
-    onProviderClick: (String) -> Unit,
-    innerPadding: PaddingValues
+    onClearFilters: () -> Unit,
+    onProviderClick: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -120,31 +121,50 @@ private fun ResultsContent(
             .padding(innerPadding),
         contentPadding = PaddingValues(
             start = 12.dp,
-            top = 12.dp,
+            top = 8.dp,
             end = 12.dp,
-            bottom = 20.dp
+            bottom = 16.dp
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
 
         item {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "Electricistas cerca de ti",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
+            ResultsHeader(
+                category = selectedCategory,
+                resultCount = providers.size
+            )
+        }
 
-                Text(
-                    text = "Encontramos los mejores profesionales para tu necesidad.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        item {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChanged,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text("Buscar por nombre, servicio o zona")
+                },
+                leadingIcon = {
+                    Text("⌕")
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        TextButton(
+                            onClick = { onQueryChanged("") }
+                        ) {
+                            Text("Borrar")
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp)
+            )
+        }
+
+        item {
+            CategoryFilters(
+                selectedCategory = selectedCategory,
+                onCategorySelected = onCategorySelected
+            )
         }
 
         item {
@@ -156,23 +176,16 @@ private fun ResultsContent(
 
         if (providers.isEmpty()) {
             item {
-                Text(
-                    text = "No encontramos profesionales para este filtro.",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                EmptyResults(
+                    category = selectedCategory,
+                    onClearFilters = onClearFilters
                 )
             }
         } else {
             items(
                 items = providers,
-                key = { provider ->
-                    provider.id
-                }
+                key = { provider -> provider.id }
             ) { provider ->
-
                 ProviderCard(
                     provider = provider,
                     onClick = {
@@ -180,6 +193,65 @@ private fun ResultsContent(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ResultsHeader(
+    category: ServiceCategory?,
+    resultCount: Int
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = if (category == null) {
+                "Profesionales cerca de ti"
+            } else {
+                "${category.pluralTitle} cerca de ti"
+            },
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Text(
+            text = when (resultCount) {
+                0 -> "Sin resultados con estos filtros."
+                1 -> "1 profesional encontrado."
+                else -> "$resultCount profesionales encontrados."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun CategoryFilters(
+    selectedCategory: ServiceCategory?,
+    onCategorySelected: (ServiceCategory?) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        ProviderFilterChip(
+            text = "Todas",
+            selected = selectedCategory == null,
+            onClick = { onCategorySelected(null) }
+        )
+
+        ServiceCategory.entries.forEach { category ->
+            ProviderFilterChip(
+                text = "${category.symbol} ${category.label}",
+                selected = selectedCategory == category,
+                onClick = { onCategorySelected(category) }
+            )
         }
     }
 }
@@ -195,102 +267,77 @@ private fun ProviderFilters(
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-
         ProviderFilterChip(
             text = "Mejor calificados",
             selected = selectedFilter == ProviderFilter.TOP_RATED,
-            onClick = {
-                onFilterSelected(
-                    ProviderFilter.TOP_RATED
-                )
-            }
+            onClick = { onFilterSelected(ProviderFilter.TOP_RATED) }
         )
 
         ProviderFilterChip(
             text = "Disponibles",
             selected = selectedFilter == ProviderFilter.AVAILABLE,
-            onClick = {
-                onFilterSelected(
-                    ProviderFilter.AVAILABLE
-                )
-            }
+            onClick = { onFilterSelected(ProviderFilter.AVAILABLE) }
         )
 
         ProviderFilterChip(
             text = "Más recomendados",
             selected = selectedFilter == ProviderFilter.MOST_RECOMMENDED,
-            onClick = {
-                onFilterSelected(
-                    ProviderFilter.MOST_RECOMMENDED
-                )
-            }
+            onClick = { onFilterSelected(ProviderFilter.MOST_RECOMMENDED) }
         )
     }
 }
 
 @Composable
-private fun ResultsBottomBar(
-    onHomeClick: () -> Unit
+private fun EmptyResults(
+    category: ServiceCategory?,
+    onClearFilters: () -> Unit
 ) {
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 4.dp
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-
-        NavigationBarItem(
-            selected = false,
-            onClick = onHomeClick,
-            icon = {
-                Text(
-                    text = "⌂",
-                    fontSize = 20.sp
-                )
+        Text(
+            text = if (category == null) {
+                "No encontramos profesionales con esa búsqueda."
+            } else {
+                "No encontramos ${category.pluralTitle.lowercase()} con esos filtros."
             },
-            label = {
-                Text("Inicio")
-            }
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        NavigationBarItem(
-            selected = true,
-            onClick = {},
-            icon = {
-                Text(
-                    text = "⌕",
-                    fontSize = 20.sp
-                )
-            },
-            label = {
-                Text("Explorar")
-            }
-        )
+        OutlinedButton(
+            onClick = onClearFilters
+        ) {
+            Text("Quitar filtros")
+        }
+    }
+}
 
-        NavigationBarItem(
-            selected = false,
-            onClick = {},
-            icon = {
-                Text(
-                    text = "▤",
-                    fontSize = 19.sp
-                )
-            },
-            label = {
-                Text("Mis pedidos")
-            }
-        )
+@Preview(showBackground = true, heightDp = 800)
+@Composable
+private fun ResultsScreenPreview() {
+    val state = ResultsState(category = ServiceCategory.PLUMBING)
 
-        NavigationBarItem(
-            selected = false,
-            onClick = {},
-            icon = {
-                Text(
-                    text = "○",
-                    fontSize = 20.sp
-                )
-            },
-            label = {
-                Text("Perfil")
-            }
+    ProyectplataformasTheme {
+        ResultsScreen(
+            state = state,
+            providers = providersForResults(
+                providers = MockLocalHandsData.providers,
+                category = state.category,
+                query = state.query,
+                filter = state.filter
+            ),
+            onBackClick = {},
+            onProviderClick = {},
+            onCategorySelected = {},
+            onQueryChanged = {},
+            onFilterSelected = {},
+            onClearFilters = {},
+            onTabSelected = {}
         )
     }
 }

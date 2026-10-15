@@ -11,6 +11,8 @@ data class Provider(
     val id: String,
     val name: String,
     val specialty: String,
+    // Categoría del inicio a la que pertenece (sirve para filtrar Resultados).
+    val category: ServiceCategory,
     val zone: String,
     val experienceYears: Int,
     val rating: Double,
@@ -25,4 +27,4 @@ data class Provider(
     val contactPhone: String = "",
     val contactEmail: String = "",
     val reviews: List<CommunityReview> = emptyList()
-)
+)

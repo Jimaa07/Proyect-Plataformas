@@ -1,5 +1,6 @@
 package com.example.proyect_plataformas.ui.screens.request
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,92 +10,73 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.proyect_plataformas.data.model.Provider
+import com.example.proyect_plataformas.data.model.TimeSlot
+import com.example.proyect_plataformas.ui.format.formatDayAndDate
+import com.example.proyect_plataformas.ui.format.formatLongDate
+import com.example.proyect_plataformas.ui.state.RequestFormState
+import com.example.proyect_plataformas.ui.state.coverageZonesOf
+import com.example.proyect_plataformas.ui.state.initialLocalHandsState
+import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
-import java.time.format.ResolverStyle
-
-private const val MIN_PROBLEM_LENGTH = 20
-
-private val DATE_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter
-        .ofPattern("dd/MM/uuuu")
-        .withResolverStyle(ResolverStyle.STRICT)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RequestServiceScreen(
     provider: Provider,
+    form: RequestFormState,
+    formErrors: RequestFormErrors,
+    today: LocalDate,
     onBackClick: () -> Unit,
-    onRequestSubmitted: () -> Unit
+    onDescriptionChanged: (String) -> Unit,
+    onZoneSelected: (String) -> Unit,
+    onDateSelected: (LocalDate) -> Unit,
+    onTimeSlotSelected: (TimeSlot) -> Unit,
+    onSubmitClick: () -> Unit,
+    onFinished: () -> Unit
 ) {
-    var problemDescription by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var zone by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var preferredDate by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var selectedTimeSlot by rememberSaveable {
-        mutableStateOf<String?>(null)
-    }
-
-    var showConfirmation by rememberSaveable {
+    // El formulario y su validación viven en el ViewModel (semana 11).
+    // Aquí solo queda lo efímero: si el calendario está abierto.
+    var showDatePicker by rememberSaveable {
         mutableStateOf(false)
     }
 
-    val descriptionError =
-        validateDescription(problemDescription)
-
-    val zoneError =
-        validateZone(
-            zone = zone,
-            availableZones = provider.coverageZones
-        )
-
-    val dateError =
-        validateDate(preferredDate)
-
-    val timeSlotError =
-        if (selectedTimeSlot == null) {
-            "Selecciona una franja horaria."
-        } else {
-            null
-        }
-
-    val isFormValid =
-        descriptionError == null &&
-                zoneError == null &&
-                dateError == null &&
-                timeSlotError == null
+    // La zona y el horario se eligen con chips: el usuario no tiene que adivinar texto.
+    val coverageZones = remember(provider) {
+        coverageZonesOf(provider)
+    }
 
     Scaffold(
         topBar = {
@@ -121,58 +103,110 @@ fun RequestServiceScreen(
     ) { innerPadding ->
         RequestServiceContent(
             provider = provider,
-            problemDescription = problemDescription,
-            zone = zone,
-            preferredDate = preferredDate,
-            selectedTimeSlot = selectedTimeSlot,
-            descriptionError = descriptionError,
-            zoneError = zoneError,
-            dateError = dateError,
-            timeSlotError = timeSlotError,
-            isFormValid = isFormValid,
+            coverageZones = coverageZones,
+            problemDescription = form.description,
+            zone = form.zone,
+            selectedDate = form.date,
+            selectedTimeSlot = form.timeSlot,
+            formErrors = formErrors,
+            canSubmit = formErrors.isValid && !form.submitted,
             innerPadding = innerPadding,
-            onDescriptionChanged = {
-                problemDescription = it
-            },
-            onZoneChanged = {
-                zone = it
-            },
-            onDateChanged = {
-                preferredDate = it
-            },
-            onTimeSlotSelected = {
-                selectedTimeSlot = it
-            },
-            onSubmitClick = {
-                showConfirmation = true
-            }
+            onDescriptionChanged = onDescriptionChanged,
+            onZoneSelected = onZoneSelected,
+            onDateClick = { showDatePicker = true },
+            onTimeSlotSelected = onTimeSlotSelected,
+            onSubmitClick = onSubmitClick
         )
     }
 
-    if (showConfirmation) {
-        AlertDialog(
-            onDismissRequest = {
-                showConfirmation = false
+    if (showDatePicker) {
+        RequestDatePickerDialog(
+            initialDateMillis = form.date?.let(::localDateToUtcMillis),
+            today = today,
+            onDateConfirmed = { millis ->
+                onDateSelected(utcMillisToLocalDate(millis))
+                showDatePicker = false
             },
+            onDismiss = { showDatePicker = false }
+        )
+    }
+
+    // El ViewModel marca el formulario como enviado; la pantalla solo lo muestra.
+    if (form.submitted) {
+        val dateText = form.date?.let { formatLongDate(it) }.orEmpty()
+        val slotText = form.timeSlot?.label?.lowercase().orEmpty()
+
+        AlertDialog(
+            onDismissRequest = onFinished,
             title = {
                 Text("Solicitud enviada")
             },
             text = {
                 Text(
-                    text = "Tu solicitud para ${provider.name} fue registrada " +
-                            "correctamente ."
+                    text = "Le enviamos tu solicitud a ${provider.name} para el " +
+                            "$dateText en la $slotText. Puedes ver su estado en Mis pedidos."
                 )
             },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        showConfirmation = false
-                        onRequestSubmitted()
-                    }
+                    onClick = onFinished
                 ) {
-                    Text("Aceptar")
+                    Text("Ver mis pedidos")
                 }
             }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RequestDatePickerDialog(
+    initialDateMillis: Long?,
+    today: LocalDate,
+    onDateConfirmed: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // El calendario solo deja tocar fechas válidas (desde hoy hasta 60 días).
+    val selectableDates = remember(today) {
+        object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return isSelectableRequestDate(utcTimeMillis, today)
+            }
+
+            override fun isSelectableYear(year: Int): Boolean {
+                return year in today.year..today.plusDays(MAX_DAYS_AHEAD).year
+            }
+        }
+    }
+
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialDateMillis,
+        selectableDates = selectableDates
+    )
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let(onDateConfirmed)
+                },
+                enabled = datePickerState.selectedDateMillis != null
+            ) {
+                Text("Aceptar")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("Cancelar")
+            }
+        }
+    ) {
+        DatePicker(
+            state = datePickerState,
+            showModeToggle = false
         )
     }
 }
@@ -180,20 +214,18 @@ fun RequestServiceScreen(
 @Composable
 private fun RequestServiceContent(
     provider: Provider,
+    coverageZones: List<String>,
     problemDescription: String,
-    zone: String,
-    preferredDate: String,
-    selectedTimeSlot: String?,
-    descriptionError: String?,
-    zoneError: String?,
-    dateError: String?,
-    timeSlotError: String?,
-    isFormValid: Boolean,
+    zone: String?,
+    selectedDate: LocalDate?,
+    selectedTimeSlot: TimeSlot?,
+    formErrors: RequestFormErrors,
+    canSubmit: Boolean,
     innerPadding: PaddingValues,
     onDescriptionChanged: (String) -> Unit,
-    onZoneChanged: (String) -> Unit,
-    onDateChanged: (String) -> Unit,
-    onTimeSlotSelected: (String) -> Unit,
+    onZoneSelected: (String) -> Unit,
+    onDateClick: () -> Unit,
+    onTimeSlotSelected: (TimeSlot) -> Unit,
     onSubmitClick: () -> Unit
 ) {
     Column(
@@ -203,181 +235,285 @@ private fun RequestServiceContent(
             .verticalScroll(rememberScrollState())
             .padding(
                 start = 20.dp,
-                top = 20.dp,
+                top = 16.dp,
                 end = 20.dp,
-                bottom = 32.dp
+                bottom = 24.dp
             ),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
 
         ProviderSummaryCard(
             provider = provider
         )
 
-        Text(
-            text = "Cuéntanos qué necesitas",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        OutlinedTextField(
-            value = problemDescription,
-            onValueChange = onDescriptionChanged,
-            modifier = Modifier.fillMaxWidth(),
-            label = {
-                Text("Descripción del problema")
-            },
-            placeholder = {
-                Text(
-                    "Ej. Necesito reparar un tomacorriente que dejó de funcionar."
-                )
-            },
-            minLines = 4,
-            maxLines = 6,
-            isError = descriptionError != null,
-            supportingText = {
-                Text(
-                    text = descriptionError
-                        ?: "${problemDescription.trim().length} caracteres"
-                )
-            }
-        )
-
+        // ---------- Descripción ----------
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            FieldTitle(
+                title = "¿Qué necesitas?"
+            )
+
+            val descriptionLength = problemDescription.trim().length
+
+            // El error solo aparece cuando el usuario ya empezó a escribir.
+            val showDescriptionError =
+                problemDescription.isNotEmpty() && formErrors.description != null
+
             OutlinedTextField(
-                value = zone,
-                onValueChange = onZoneChanged,
+                value = problemDescription,
+                onValueChange = onDescriptionChanged,
                 modifier = Modifier.fillMaxWidth(),
-                label = {
-                    Text("Zona")
-                },
                 placeholder = {
-                    Text("Ej. Zona 10")
+                    Text("Ej. El tomacorriente de la cocina dejó de funcionar desde ayer.")
                 },
-                singleLine = true,
-                isError = zoneError != null,
+                minLines = 3,
+                maxLines = 6,
+                isError = showDescriptionError,
                 supportingText = {
-                    if (zoneError != null) {
-                        Text(zoneError)
-                    } else {
-                        Text("Zona válida")
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = when {
+                                showDescriptionError -> formErrors.description.orEmpty()
+                                problemDescription.isEmpty() ->
+                                    "Incluye qué falla, desde cuándo y en qué parte de la casa."
+                                else -> "Descripción completa."
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        if (descriptionLength < MIN_PROBLEM_LENGTH) {
+                            Text("$descriptionLength/$MIN_PROBLEM_LENGTH")
+                        }
                     }
                 }
             )
-
-            if (provider.coverageZones.isNotEmpty()) {
-                Text(
-                    text = "Zonas disponibles:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    provider.coverageZones.forEach { availableZone ->
-                        FilterChip(
-                            selected = zone.equals(
-                                availableZone,
-                                ignoreCase = true
-                            ),
-                            onClick = {
-                                onZoneChanged(availableZone)
-                            },
-                            label = {
-                                Text(availableZone)
-                            }
-                        )
-                    }
-                }
-            }
         }
 
-        OutlinedTextField(
-            value = preferredDate,
-            onValueChange = onDateChanged,
-            modifier = Modifier.fillMaxWidth(),
-            label = {
-                Text("Fecha preferida")
-            },
-            placeholder = {
-                Text("dd/MM/aaaa")
-            },
-            singleLine = true,
-            isError = dateError != null,
-            supportingText = {
-                if (dateError != null) {
-                    Text(dateError)
-                } else {
-                    Text("Fecha válida")
-                }
-            }
-        )
-
+        // ---------- Zona ----------
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "Franja horaria",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
+            FieldTitle(
+                title = "¿Dónde?"
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                coverageZones.forEach { availableZone ->
+                    FilterChip(
+                        selected = zone.equals(availableZone, ignoreCase = true),
+                        onClick = { onZoneSelected(availableZone) },
+                        label = { Text(availableZone) }
+                    )
+                }
+            }
+
+            FieldHint(
+                text = if (zone == null) {
+                    "${provider.name} trabaja solo en estas zonas. Elige una."
+                } else {
+                    formErrors.zone ?: "La visita será en $zone."
+                },
+                isError = zone != null && formErrors.zone != null
+            )
+        }
+
+        // ---------- Fecha ----------
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FieldTitle(
+                title = "¿Cuándo?"
+            )
+
+            DateSelectorField(
+                selectedDate = selectedDate,
+                isError = selectedDate != null && formErrors.date != null,
+                onClick = onDateClick
+            )
+
+            FieldHint(
+                text = if (selectedDate == null) {
+                    "Toca para abrir el calendario. Puedes agendar hasta $MAX_DAYS_AHEAD días adelante."
+                } else {
+                    formErrors.date ?: "Fecha disponible."
+                },
+                isError = selectedDate != null && formErrors.date != null
+            )
+        }
+
+        // ---------- Horario ----------
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FieldTitle(
+                title = "¿En qué horario?"
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                FilterChip(
-                    selected = selectedTimeSlot == "Mañana",
-                    onClick = {
-                        onTimeSlotSelected("Mañana")
-                    },
-                    label = {
-                        Text("Mañana")
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-
-                FilterChip(
-                    selected = selectedTimeSlot == "Tarde",
-                    onClick = {
-                        onTimeSlotSelected("Tarde")
-                    },
-                    label = {
-                        Text("Tarde")
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            if (timeSlotError != null) {
-                Text(
-                    text = timeSlotError,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
+                TimeSlot.entries.forEach { slot ->
+                    FilterChip(
+                        selected = selectedTimeSlot == slot,
+                        onClick = { onTimeSlotSelected(slot) },
+                        label = {
+                            Column(
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = slot.label,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                Text(
+                                    text = slot.hours,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
 
         Button(
             onClick = onSubmitClick,
-            enabled = isFormValid,
+            enabled = canSubmit,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Enviar solicitud")
         }
 
-        if (!isFormValid) {
-            Text(
-                text = "Completa correctamente todos los campos para habilitar el botón.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        // En lugar de un mensaje genérico, se lista exactamente qué falta.
+        if (!formErrors.isValid) {
+            PendingFieldsCard(
+                messages = formErrors.pendingMessages
             )
+        }
+    }
+}
+
+@Composable
+private fun DateSelectorField(
+    selectedDate: LocalDate?,
+    isError: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isError) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.outline
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 14.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "📅",
+                fontSize = 20.sp
+            )
+
+            Text(
+                text = selectedDate?.let { formatDayAndDate(it) } ?: "Elegir fecha",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (selectedDate == null) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+            )
+
+            Text(
+                text = if (selectedDate == null) "Abrir" else "Cambiar",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun FieldTitle(
+    title: String
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold
+    )
+}
+
+@Composable
+private fun FieldHint(
+    text: String,
+    isError: Boolean
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (isError) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    )
+}
+
+@Composable
+private fun PendingFieldsCard(
+    messages: List<String>
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Para enviar la solicitud falta:",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            messages.forEach { message ->
+                Text(
+                    text = "• $message",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -405,7 +541,7 @@ private fun ProviderSummaryCard(
             )
 
             Text(
-                text = provider.specialty,
+                text = "${provider.category.symbol} ${provider.specialty}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -413,64 +549,26 @@ private fun ProviderSummaryCard(
     }
 }
 
-private fun validateDescription(
-    description: String
-): String? {
-    return when {
-        description.isBlank() ->
-            "La descripción es obligatoria."
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+private fun RequestServiceScreenPreview() {
+    val today = LocalDate.now()
+    val state = initialLocalHandsState(today)
+    val provider = state.providers.first()
 
-        description.trim().length < MIN_PROBLEM_LENGTH ->
-            "La descripción debe tener al menos " +
-                    "$MIN_PROBLEM_LENGTH caracteres."
-
-        else -> null
-    }
-}
-
-private fun validateZone(
-    zone: String,
-    availableZones: List<String>
-): String? {
-    if (zone.isBlank()) {
-        return "La zona es obligatoria."
-    }
-
-    if (
-        availableZones.isNotEmpty() &&
-        availableZones.none {
-            it.equals(
-                zone.trim(),
-                ignoreCase = true
-            )
-        }
-    ) {
-        return "Selecciona una zona de cobertura del profesional."
-    }
-
-    return null
-}
-
-private fun validateDate(
-    dateText: String
-): String? {
-    if (dateText.isBlank()) {
-        return "La fecha es obligatoria."
-    }
-
-    return try {
-        val selectedDate =
-            LocalDate.parse(
-                dateText.trim(),
-                DATE_FORMATTER
-            )
-
-        if (selectedDate.isBefore(LocalDate.now())) {
-            "La fecha no puede estar en el pasado."
-        } else {
-            null
-        }
-    } catch (_: DateTimeParseException) {
-        "Ingresa una fecha válida en formato dd/MM/aaaa."
+    ProyectplataformasTheme {
+        RequestServiceScreen(
+            provider = provider,
+            form = state.requestFormFor(provider.id),
+            formErrors = state.requestErrorsFor(provider.id),
+            today = today,
+            onBackClick = {},
+            onDescriptionChanged = {},
+            onZoneSelected = {},
+            onDateSelected = {},
+            onTimeSlotSelected = {},
+            onSubmitClick = {},
+            onFinished = {}
+        )
     }
 }

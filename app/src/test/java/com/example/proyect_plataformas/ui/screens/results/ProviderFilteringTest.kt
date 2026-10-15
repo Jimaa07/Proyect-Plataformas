@@ -2,13 +2,19 @@ package com.example.proyect_plataformas.ui.screens.results
 
 import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.ProviderFilter
+import com.example.proyect_plataformas.data.model.ServiceCategory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProviderFilteringTest {
 
-    private val providers = MockLocalHandsData.providers
+    // Estos tests se escribieron para los 3 electricistas del mock; ahora el mock
+    // tiene más categorías, así que se prueban sobre Electricidad.
+    private val providers = filterByCategory(
+        providers = MockLocalHandsData.providers,
+        category = ServiceCategory.ELECTRICAL
+    )
 
     @Test
     fun topRated_ordersProvidersByRatingDescending() {
@@ -105,4 +111,4 @@ class ProviderFilteringTest {
             }
         )
     }
-}
+}
