@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.Flow
  * con hasPendingWrites (y la solicitud con isPendingSync). Devuelven
  * Result.failure solo cuando el cambio no se puede hacer (por ejemplo,
  * el prestador no existe o el pedido ya fue calificado).
+ *
+ * Ids: Provider.id, ServiceRequest.id y CommunityReview.id deben ser únicos
+ * (por ejemplo, el id del documento), porque las listas los usan como clave.
  */
 interface LocalHandsRepository {
 
