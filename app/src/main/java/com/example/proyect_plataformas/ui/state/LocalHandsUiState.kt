@@ -24,34 +24,6 @@ import kotlin.math.roundToInt
 // lo expone como StateFlow, las pantallas solo lo leen y le mandan eventos.
 // =====================================================================
 
-/** Filtros que el vecino eligió en Resultados. */
-data class ResultsState(
-    val category: ServiceCategory? = null,
-    val query: String = "",
-    val filter: ProviderFilter = ProviderFilter.TOP_RATED
-)
-
-/** Formulario de solicitud mientras el vecino lo llena. */
-data class RequestFormState(
-    val providerId: String,
-    val description: String = "",
-    val zone: String? = null,
-    val date: LocalDate? = null,
-    val timeSlot: TimeSlot? = null,
-    val submitted: Boolean = false
-)
-
-/** Formulario para calificar un pedido terminado. */
-data class RatingFormState(
-    val requestId: String,
-    val stars: Int = 0,
-    val comment: String = "",
-    val submitted: Boolean = false
-) {
-    val isValid: Boolean
-        get() = isRatingFormValid(stars, comment)
-}
-
 data class LocalHandsUiState(
     // Datos compartidos por varias pantallas
     val currentUser: UserProfile,
@@ -136,11 +108,6 @@ fun initialLocalHandsState(
         requests = MockLocalHandsData.initialRequests,
         today = today
     )
-}
-
-/** Zonas donde trabaja; si no tiene lista, su zona principal. */
-fun coverageZonesOf(provider: Provider): List<String> {
-    return provider.coverageZones.ifEmpty { listOf(provider.zone) }
 }
 
 // =====================================================================
@@ -307,13 +274,3 @@ fun Provider.withReview(review: CommunityReview): Provider {
     )
 }
 
-/** RateServiceScreen trabaja con CompletedService; aquí se adapta el pedido. */
-fun ServiceRequest.toCompletedService(): CompletedService {
-    return CompletedService(
-        id = id,
-        providerId = providerId,
-        providerName = providerName,
-        serviceDescription = description,
-        completedDate = formatLongDate(date)
-    )
-}
