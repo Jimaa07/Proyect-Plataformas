@@ -1,15 +1,15 @@
 package com.example.proyect_plataformas.ui.state
 
 import com.example.proyect_plataformas.data.model.CommunityReview
+import com.example.proyect_plataformas.data.model.RequestDraft
 import com.example.proyect_plataformas.data.model.RequestStatus
 import com.example.proyect_plataformas.data.model.ServiceCategory
 import com.example.proyect_plataformas.data.model.TimeSlot
 import com.example.proyect_plataformas.ui.screens.orders.ordersForDisplay
-import com.example.proyect_plataformas.ui.screens.request.RequestDraft
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
-import java.time.LocalDate
 
 class LocalHandsStateTest {
 
@@ -80,7 +80,7 @@ class LocalHandsStateTest {
     @Test
     fun review_recalculatesAverage() {
         val provider = initial.providerById("silvia-paz")!!.copy(rating = 4.0, reviewCount = 1)
-        val updated = provider.withReview(CommunityReview("Ana", 5, "Muy bien", "hoy"))
+        val updated = provider.withReview(CommunityReview(reviewerName = "Ana", rating = 5, comment = "Muy bien", date = "hoy"))
 
         assertEquals(4.5, updated.rating, 0.0)
         assertEquals(2, updated.reviewCount)

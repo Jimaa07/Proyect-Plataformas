@@ -20,7 +20,18 @@ object MockLocalHandsData {
 
     // Cada categoría del inicio tiene al menos dos prestadores para que
     // el filtrado por categoría muestre resultados distintos.
-    val providers: List<Provider> = listOf(
+    // A cada reseña se le asigna un id estable para usarlo como clave en las listas.
+    val providers: List<Provider> by lazy {
+        baseProviders.map { provider ->
+            provider.copy(
+                reviews = provider.reviews.mapIndexed { index, review ->
+                    review.copy(id = "${provider.id}-review-${index + 1}")
+                }
+            )
+        }
+    }
+
+    private val baseProviders: List<Provider> = listOf(
 
         // ---------- Electricidad ----------
         Provider(

@@ -5,6 +5,7 @@ import com.example.proyect_plataformas.data.model.CommunityReview
 import com.example.proyect_plataformas.data.model.CompletedService
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.ProviderFilter
+import com.example.proyect_plataformas.data.model.RequestDraft
 import com.example.proyect_plataformas.data.model.RequestStatus
 import com.example.proyect_plataformas.data.model.ServiceCategory
 import com.example.proyect_plataformas.data.model.ServiceRequest
@@ -12,7 +13,6 @@ import com.example.proyect_plataformas.data.model.TimeSlot
 import com.example.proyect_plataformas.data.model.UserProfile
 import com.example.proyect_plataformas.ui.format.formatLongDate
 import com.example.proyect_plataformas.ui.screens.rating.isRatingFormValid
-import com.example.proyect_plataformas.ui.screens.request.RequestDraft
 import com.example.proyect_plataformas.ui.screens.request.RequestFormErrors
 import com.example.proyect_plataformas.ui.screens.request.validateRequestForm
 import com.example.proyect_plataformas.ui.screens.results.providersForResults
