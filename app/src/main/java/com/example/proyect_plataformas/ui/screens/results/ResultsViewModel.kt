@@ -13,6 +13,7 @@ import com.example.proyect_plataformas.data.model.ProviderFilter
 import com.example.proyect_plataformas.data.model.ServiceCategory
 import com.example.proyect_plataformas.data.repository.DataState
 import com.example.proyect_plataformas.data.repository.LocalHandsRepository
+import com.example.proyect_plataformas.navigation.Route
 import com.example.proyect_plataformas.ui.state.ContentStatus
 import com.example.proyect_plataformas.ui.state.ResultsState
 import com.example.proyect_plataformas.ui.state.observeWithRetry
@@ -37,7 +38,7 @@ class ResultsViewModel(
 
     // La categoría llega como argumento de navegación (null = todas).
     private val initialCategory: ServiceCategory? =
-        savedStateHandle.get<String>(ARG_CATEGORY)
+        savedStateHandle.get<String>(Route.Results.ARG_CATEGORY)
             ?.let { name -> ServiceCategory.entries.firstOrNull { category -> category.name == name } }
 
     private val filters = MutableStateFlow(ResultsState(category = initialCategory))
@@ -89,8 +90,6 @@ class ResultsViewModel(
     }
 
     companion object {
-        const val ARG_CATEGORY = "category"
-
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application =

@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.proyect_plataformas.LocalHandsApplication
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.repository.LocalHandsRepository
+import com.example.proyect_plataformas.navigation.Route
 import com.example.proyect_plataformas.ui.state.DetailState
 import com.example.proyect_plataformas.ui.state.observeWithRetry
 import com.example.proyect_plataformas.ui.state.toDetailState
@@ -25,7 +26,7 @@ class ProfileViewModel(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val providerId: String = savedStateHandle.get<String>(ARG_PROVIDER_ID).orEmpty()
+    val providerId: String = savedStateHandle.get<String>(Route.Profile.ARG_PROVIDER_ID).orEmpty()
 
     private val retryCount = MutableStateFlow(0)
 
@@ -49,8 +50,6 @@ class ProfileViewModel(
     }
 
     companion object {
-        const val ARG_PROVIDER_ID = "providerId"
-
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application =

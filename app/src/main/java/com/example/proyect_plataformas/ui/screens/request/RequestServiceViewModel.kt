@@ -12,6 +12,7 @@ import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.RequestDraft
 import com.example.proyect_plataformas.data.model.TimeSlot
 import com.example.proyect_plataformas.data.repository.LocalHandsRepository
+import com.example.proyect_plataformas.navigation.Route
 import com.example.proyect_plataformas.ui.state.DetailState
 import com.example.proyect_plataformas.ui.state.RequestFormState
 import com.example.proyect_plataformas.ui.state.coverageZonesOf
@@ -41,7 +42,7 @@ class RequestServiceViewModel(
     clock: () -> LocalDate = { LocalDate.now() }
 ) : ViewModel() {
 
-    val providerId: String = savedStateHandle.get<String>(ARG_PROVIDER_ID).orEmpty()
+    val providerId: String = savedStateHandle.get<String>(Route.RequestService.ARG_PROVIDER_ID).orEmpty()
 
     private val today: LocalDate = clock()
 
@@ -171,7 +172,6 @@ class RequestServiceViewModel(
     }
 
     companion object {
-        const val ARG_PROVIDER_ID = "providerId"
         const val SUBMIT_ERROR = "No pudimos enviar la solicitud. Revisa tu conexión e intenta de nuevo."
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {

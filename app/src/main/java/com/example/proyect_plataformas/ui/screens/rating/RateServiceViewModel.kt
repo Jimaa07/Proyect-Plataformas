@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.proyect_plataformas.LocalHandsApplication
 import com.example.proyect_plataformas.data.model.ServiceRequest
 import com.example.proyect_plataformas.data.repository.LocalHandsRepository
+import com.example.proyect_plataformas.navigation.Route
 import com.example.proyect_plataformas.ui.state.DetailState
 import com.example.proyect_plataformas.ui.state.RatingFormState
 import com.example.proyect_plataformas.ui.state.observeWithRetry
@@ -34,7 +35,7 @@ class RateServiceViewModel(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val requestId: String = savedStateHandle.get<String>(ARG_REQUEST_ID).orEmpty()
+    val requestId: String = savedStateHandle.get<String>(Route.RateService.ARG_REQUEST_ID).orEmpty()
 
     private val retryCount = MutableStateFlow(0)
 
@@ -120,7 +121,6 @@ class RateServiceViewModel(
     }
 
     companion object {
-        const val ARG_REQUEST_ID = "requestId"
         const val SUBMIT_ERROR = "No pudimos guardar tu calificación. Intenta de nuevo."
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
