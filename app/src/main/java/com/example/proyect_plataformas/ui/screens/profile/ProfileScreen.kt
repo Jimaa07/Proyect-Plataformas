@@ -46,6 +46,7 @@ import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.CommunityReview
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.ui.components.InitialsAvatar
+import com.example.proyect_plataformas.ui.components.NoticeBanner
 import com.example.proyect_plataformas.ui.format.starsText
 import com.example.proyect_plataformas.ui.theme.LocalHandsStar
 import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
@@ -56,7 +57,8 @@ import kotlinx.coroutines.launch
 fun ProfileScreen(
     provider: Provider,
     onBackClick: () -> Unit,
-    onRequestServiceClick: () -> Unit
+    onRequestServiceClick: () -> Unit,
+    notice: String? = null
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -115,6 +117,7 @@ fun ProfileScreen(
     ) { innerPadding ->
         ProfileContent(
             provider = provider,
+            notice = notice,
             innerPadding = innerPadding
         )
     }
@@ -123,6 +126,7 @@ fun ProfileScreen(
 @Composable
 private fun ProfileContent(
     provider: Provider,
+    notice: String?,
     innerPadding: PaddingValues
 ) {
     LazyColumn(
@@ -137,6 +141,14 @@ private fun ProfileContent(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+
+        notice?.let { text ->
+            item {
+                NoticeBanner(
+                    text = text
+                )
+            }
+        }
 
         item {
             ProviderHeaderCard(
@@ -163,7 +175,8 @@ private fun ProfileContent(
             }
         } else {
             items(
-                items = provider.reviews
+                items = provider.reviews,
+                key = { review -> review.id }
             ) { review ->
                 CommunityReviewCard(
                     review = review

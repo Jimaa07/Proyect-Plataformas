@@ -33,8 +33,12 @@ import com.example.proyect_plataformas.data.model.RequestStatus
 import com.example.proyect_plataformas.data.model.ServiceRequest
 import com.example.proyect_plataformas.ui.components.AppBottomBar
 import com.example.proyect_plataformas.ui.components.BottomTab
+import com.example.proyect_plataformas.ui.components.ErrorMessage
+import com.example.proyect_plataformas.ui.components.LoadingIndicator
+import com.example.proyect_plataformas.ui.components.NoticeBanner
 import com.example.proyect_plataformas.ui.format.formatDayAndDate
 import com.example.proyect_plataformas.ui.format.starsText
+import com.example.proyect_plataformas.ui.state.ContentStatus
 import com.example.proyect_plataformas.ui.theme.LocalHandsStar
 import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
 
@@ -46,7 +50,9 @@ fun OrdersScreen(
     onRequestClick: (providerId: String) -> Unit,
     onRateClick: (requestId: String) -> Unit,
     onExploreClick: () -> Unit,
-    onTabSelected: (BottomTab) -> Unit
+    onTabSelected: (BottomTab) -> Unit,
+    status: ContentStatus = ContentStatus.Ready(),
+    onRetry: () -> Unit = {}
 ) {
     val orderedRequests = ordersForDisplay(requests)
 
@@ -78,22 +84,51 @@ fun OrdersScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (orderedRequests.isEmpty()) {
-                item {
-                    EmptyOrders(
-                        onExploreClick = onExploreClick
-                    )
+            when (status) {
+                ContentStatus.Loading -> {
+                    item {
+                        LoadingIndicator(
+                            message = "Cargando tus pedidos..."
+                        )
+                    }
                 }
-            } else {
-                items(
-                    items = orderedRequests,
-                    key = { request -> request.id }
-                ) { request ->
-                    OrderCard(
-                        request = request,
-                        onClick = { onRequestClick(request.providerId) },
-                        onRateClick = { onRateClick(request.id) }
-                    )
+
+                is ContentStatus.Error -> {
+                    item {
+                        ErrorMessage(
+                            message = status.message,
+                            onRetry = onRetry
+                        )
+                    }
+                }
+
+                is ContentStatus.Ready -> {
+                    status.notice?.let { notice ->
+                        item {
+                            NoticeBanner(
+                                text = notice
+                            )
+                        }
+                    }
+
+                    if (orderedRequests.isEmpty()) {
+                        item {
+                            EmptyOrders(
+                                onExploreClick = onExploreClick
+                            )
+                        }
+                    } else {
+                        items(
+                            items = orderedRequests,
+                            key = { request -> request.id }
+                        ) { request ->
+                            OrderCard(
+                                request = request,
+                                onClick = { onRequestClick(request.providerId) },
+                                onRateClick = { onRateClick(request.id) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -152,6 +187,14 @@ private fun OrderCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (request.isPendingSync) {
+                Text(
+                    text = "Guardada en el teléfono: se enviará cuando vuelva la conexión.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
 
             when (request.status) {
                 RequestStatus.TO_RATE -> {

@@ -42,13 +42,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.TimeSlot
 import com.example.proyect_plataformas.ui.format.formatDayAndDate
 import com.example.proyect_plataformas.ui.format.formatLongDate
 import com.example.proyect_plataformas.ui.state.RequestFormState
 import com.example.proyect_plataformas.ui.state.coverageZonesOf
-import com.example.proyect_plataformas.ui.state.initialLocalHandsState
 import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
 import java.time.LocalDate
 
@@ -109,7 +109,9 @@ fun RequestServiceScreen(
             selectedDate = form.date,
             selectedTimeSlot = form.timeSlot,
             formErrors = formErrors,
-            canSubmit = formErrors.isValid && !form.submitted,
+            canSubmit = formErrors.isValid && !form.submitted && !form.isSubmitting,
+            isSubmitting = form.isSubmitting,
+            submitError = form.submitError,
             innerPadding = innerPadding,
             onDescriptionChanged = onDescriptionChanged,
             onZoneSelected = onZoneSelected,
@@ -221,6 +223,8 @@ private fun RequestServiceContent(
     selectedTimeSlot: TimeSlot?,
     formErrors: RequestFormErrors,
     canSubmit: Boolean,
+    isSubmitting: Boolean,
+    submitError: String?,
     innerPadding: PaddingValues,
     onDescriptionChanged: (String) -> Unit,
     onZoneSelected: (String) -> Unit,
@@ -390,7 +394,17 @@ private fun RequestServiceContent(
             enabled = canSubmit,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Enviar solicitud")
+            Text(
+                text = if (isSubmitting) "Enviando..." else "Enviar solicitud"
+            )
+        }
+
+        submitError?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
         }
 
         // En lugar de un mensaje genérico, se lista exactamente qué falta.
@@ -553,14 +567,22 @@ private fun ProviderSummaryCard(
 @Composable
 private fun RequestServiceScreenPreview() {
     val today = LocalDate.now()
-    val state = initialLocalHandsState(today)
-    val provider = state.providers.first()
+    val provider = MockLocalHandsData.providers.first()
+    val form = RequestFormState(provider.id)
 
     ProyectplataformasTheme {
         RequestServiceScreen(
             provider = provider,
-            form = state.requestFormFor(provider.id),
-            formErrors = state.requestErrorsFor(provider.id),
+            form = form,
+            formErrors = validateRequestForm(
+                description = form.description,
+                zone = form.zone,
+                date = form.date,
+                timeSlot = form.timeSlot,
+                coverageZones = coverageZonesOf(provider),
+                providerName = provider.name,
+                today = today
+            ),
             today = today,
             onBackClick = {},
             onDescriptionChanged = {},
