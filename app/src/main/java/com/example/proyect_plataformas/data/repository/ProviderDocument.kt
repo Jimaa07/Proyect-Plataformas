@@ -11,6 +11,7 @@ internal data class ProviderDocument(
     val zone: String = "",
     val experienceYears: Int = 0,
     val rating: Double = 0.0,
+    val ratingTotal: Double? = null,
     val reviewCount: Int = 0,
     val available: Boolean = false,
     val description: String = "",
