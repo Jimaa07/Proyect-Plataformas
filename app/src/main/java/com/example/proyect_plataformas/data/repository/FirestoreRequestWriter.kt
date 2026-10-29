@@ -32,13 +32,22 @@ internal class FirestoreRequestWriter(
             "User ID cannot be blank"
         }
 
-        val providerSnapshot = withTimeout(
-            REQUEST_OPERATION_TIMEOUT_MILLIS
-        ) {
-            firestore.collection("providers")
-                .document(request.providerId)
-                .get(Source.SERVER)
-                .await()
+        val providerSnapshot = try {
+            withTimeout(REQUEST_OPERATION_TIMEOUT_MILLIS) {
+                firestore.collection("providers")
+                    .document(request.providerId)
+                    .get(Source.SERVER)
+                    .await()
+            }
+        } catch (exception: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+
+            throw RepositoryTimeoutException(
+                message =
+                    "No se pudo comprobar la disponibilidad del prestador. " +
+                            "Comprueba tu conexión e inténtalo de nuevo.",
+                cause = exception
+            )
         }
 
         require(providerSnapshot.exists()) {

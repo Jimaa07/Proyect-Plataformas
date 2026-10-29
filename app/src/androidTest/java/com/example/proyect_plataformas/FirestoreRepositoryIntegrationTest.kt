@@ -16,6 +16,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
+import com.example.proyect_plataformas.data.repository.RepositoryTimeoutException
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 private const val TEST_STEP_TIMEOUT_MILLIS = 30_000L
 
@@ -185,6 +192,117 @@ class FirestoreRepositoryIntegrationTest {
                         diagnostics(),
                 exception
             )
+        }
+    }
+
+    @Test
+    fun readsCachedDataAndRejectsRequestWhileOffline() = runBlocking {
+        val repository = getRepository()
+        val firestore = FirebaseFirestore.getInstance()
+
+        // Primero carga los datos desde el servidor y establece la sesión.
+        val onlineProviders = waitForStep(
+            description = "Cargar prestadores desde el servidor"
+        ) {
+            repository.observeProvidersSnapshot()
+                .first { snapshot ->
+                    !snapshot.isFromCache &&
+                            snapshot.value.any {
+                                it.id == "provider-001"
+                            }
+                }
+        }
+
+        val provider = onlineProviders.value.first {
+            it.id == "provider-001"
+        }
+
+        assertTrue(provider.isAvailable)
+
+        val onlineRequests = waitForStep(
+            description = "Cargar solicitudes desde el servidor"
+        ) {
+            repository.observeRequestsSnapshot()
+                .first { !it.isFromCache }
+        }
+
+        try {
+            waitForStep(
+                description = "Desactivar la conexión de Firestore"
+            ) {
+                firestore.disableNetwork().await()
+            }
+
+            val cachedProviders = waitForStep(
+                description = "Leer prestadores desde caché"
+            ) {
+                repository.observeProvidersSnapshot()
+                    .first { snapshot ->
+                        snapshot.isFromCache &&
+                                snapshot.value.any {
+                                    it.id == provider.id
+                                }
+                    }
+            }
+
+            assertTrue(cachedProviders.isFromCache)
+
+            val cachedRequests = waitForStep(
+                description = "Leer solicitudes desde caché"
+            ) {
+                repository.observeRequestsSnapshot()
+                    .first { it.isFromCache }
+            }
+
+            assertEquals(
+                onlineRequests.value.map { it.id }.sorted(),
+                cachedRequests.value.map { it.id }.sorted()
+            )
+
+            val zone = provider.coverageZones.firstOrNull()
+                ?: provider.zone
+
+            val writeFailure = try {
+                withTimeout(20_000L) {
+                    repository.createRequest(
+                        NewServiceRequest(
+                            providerId = provider.id,
+                            description =
+                                "Prueba sin conexión: reparar fuga de agua.",
+                            zone = zone,
+                            date = LocalDate.now().plusDays(1),
+                            timeSlot = TimeSlot.MORNING
+                        )
+                    )
+                }
+
+                null
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                exception
+            }
+
+            val isExpectedFailure =
+                writeFailure is RepositoryTimeoutException ||
+                        (
+                                writeFailure is FirebaseFirestoreException &&
+                                        writeFailure.code ==
+                                        FirebaseFirestoreException.Code.UNAVAILABLE
+                                )
+
+            assertTrue(
+                "Se esperaba un error de conexión o tiempo de espera. " +
+                        "Resultado: $writeFailure",
+                isExpectedFailure
+            )
+        } finally {
+            // Restaura la conexión incluso si alguna comprobación falla.
+            withContext(NonCancellable) {
+                withTimeout(15_000L) {
+                    firestore.enableNetwork().await()
+                }
+            }
         }
     }
 }

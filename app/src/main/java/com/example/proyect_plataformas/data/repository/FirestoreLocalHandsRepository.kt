@@ -8,6 +8,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import com.example.proyect_plataformas.data.model.RepositorySnapshot
 
 class FirestoreLocalHandsRepository(
     firestore: FirebaseFirestore,
@@ -37,6 +38,22 @@ class FirestoreLocalHandsRepository(
         return flow {
             val userId = session.requireUserId()
             emitAll(reader.observeRequests(userId))
+        }
+    }
+
+    override fun observeProvidersSnapshot():
+            Flow<RepositorySnapshot<List<Provider>>> {
+        return flow {
+            session.requireUserId()
+            emitAll(reader.observeProvidersSnapshot())
+        }
+    }
+
+    override fun observeRequestsSnapshot():
+            Flow<RepositorySnapshot<List<ServiceRequest>>> {
+        return flow {
+            val userId = session.requireUserId()
+            emitAll(reader.observeRequestsSnapshot(userId))
         }
     }
 
