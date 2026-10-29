@@ -18,6 +18,7 @@ internal data class ProviderDocument(
     val coverageZones: List<String> = emptyList(),
     val contactPhone: String = "",
     val contactEmail: String = "",
+    val lastRatedRequestId: String? = null,
     val reviews: List<ReviewDocument> = emptyList()
 ) {
     fun toDomain(documentId: String): Provider {

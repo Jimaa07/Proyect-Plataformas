@@ -13,6 +13,7 @@ internal data class ServiceRequestDocument(
     val description: String = "",
     val zone: String = "",
     val date: String = "",
+    val ownerId: String = "",
     val timeSlot: String = "",
     val status: String = "",
     val rating: Int? = null,

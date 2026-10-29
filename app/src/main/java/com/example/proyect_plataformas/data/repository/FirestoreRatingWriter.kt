@@ -20,11 +20,15 @@ internal class FirestoreRatingWriter(
         requestId: String,
         stars: Int,
         comment: String,
-        reviewerName: String
+        reviewerName: String,
+        userId: String
     ) {
         val trimmedComment = comment.trim()
         val trimmedName = reviewerName.trim()
 
+        require(userId.isNotBlank()) {
+            "User ID cannot be blank"
+        }
         require(requestId.isNotBlank()) {
             "Request ID cannot be blank"
         }
@@ -37,7 +41,6 @@ internal class FirestoreRatingWriter(
         require(trimmedName.isNotBlank()) {
             "Reviewer name cannot be blank"
         }
-
         val requestReference = firestore
             .collection("serviceRequests")
             .document(requestId)
@@ -51,6 +54,10 @@ internal class FirestoreRatingWriter(
 
                     require(requestSnapshot.exists()) {
                         "Request $requestId does not exist"
+                    }
+
+                    require(requestSnapshot.getString("ownerId") == userId) {
+                        "Request $requestId does not belong to the current user"
                     }
 
                     val requestDocument = requireNotNull(
@@ -115,6 +122,7 @@ internal class FirestoreRatingWriter(
                     transaction.update(
                         providerReference,
                         mapOf(
+                            "lastRatedRequestId" to requestId,
                             "ratingTotal" to newTotal,
                             "rating" to newAverage,
                             "reviewCount" to newCount,

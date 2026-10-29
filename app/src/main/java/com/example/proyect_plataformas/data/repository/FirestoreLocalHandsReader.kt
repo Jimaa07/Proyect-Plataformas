@@ -49,8 +49,13 @@ internal class FirestoreLocalHandsReader(
             }
     }
 
-    fun observeRequests(): Flow<List<ServiceRequest>> {
+    fun observeRequests(userId: String): Flow<List<ServiceRequest>> {
+        require(userId.isNotBlank()) {
+            "User ID cannot be blank"
+        }
+
         return firestore.collection("serviceRequests")
+            .whereEqualTo("ownerId", userId)
             .snapshots()
             .map { snapshot ->
                 snapshot.documents.map { document ->

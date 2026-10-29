@@ -15,7 +15,10 @@ private const val REQUEST_OPERATION_TIMEOUT_MILLIS = 15_000L
 internal class FirestoreRequestWriter(
     private val firestore: FirebaseFirestore
 ) {
-    suspend fun createRequest(request: NewServiceRequest): String {
+    suspend fun createRequest(
+        request: NewServiceRequest,
+        userId: String
+    ): String {
         require(request.providerId.isNotBlank()) {
             "Provider ID cannot be blank"
         }
@@ -24,6 +27,9 @@ internal class FirestoreRequestWriter(
         }
         require(request.zone.isNotBlank()) {
             "Zone cannot be blank"
+        }
+        require(userId.isNotBlank()) {
+            "User ID cannot be blank"
         }
 
         val providerSnapshot = withTimeout(
@@ -64,6 +70,7 @@ internal class FirestoreRequestWriter(
         }
 
         val requestDocument = ServiceRequestDocument(
+            ownerId = userId,
             providerId = provider.id,
             providerName = provider.name,
             category = provider.category.name,
