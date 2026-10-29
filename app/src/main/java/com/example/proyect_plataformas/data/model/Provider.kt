@@ -1,6 +1,7 @@
 package com.example.proyect_plataformas.data.model
 
 data class CommunityReview(
+    val id: String = "",
     val reviewerName: String,
     val rating: Int,
     val comment: String,
@@ -27,4 +28,4 @@ data class Provider(
     val contactPhone: String = "",
     val contactEmail: String = "",
     val reviews: List<CommunityReview> = emptyList()
-)
+)

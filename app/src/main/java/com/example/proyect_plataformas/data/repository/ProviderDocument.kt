@@ -46,7 +46,11 @@ internal data class ProviderDocument(
             coverageZones = coverageZones,
             contactPhone = contactPhone,
             contactEmail = contactEmail,
-            reviews = reviews.map { it.toDomain() }
+            // La reseña más nueva va primero; contar desde la más antigua
+            // mantiene estable el id de las anteriores cuando llega una nueva.
+            reviews = reviews.mapIndexed { index, review ->
+                review.toDomain(id = "$documentId-review-${reviews.size - index}")
+            }
         )
     }
 }
@@ -57,8 +61,9 @@ internal data class ReviewDocument(
     val comment: String = "",
     val date: String = ""
 ) {
-    fun toDomain(): CommunityReview {
+    fun toDomain(id: String): CommunityReview {
         return CommunityReview(
+            id = id,
             reviewerName = reviewerName,
             rating = rating,
             comment = comment,

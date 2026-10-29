@@ -1,8 +1,10 @@
 package com.example.proyect_plataformas.data.repository
 
+import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.NewServiceRequest
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.ServiceRequest
+import com.example.proyect_plataformas.data.model.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +21,9 @@ class FirestoreLocalHandsRepository(
     private val reader = FirestoreLocalHandsReader(firestore)
     private val requestWriter = FirestoreRequestWriter(firestore)
     private val ratingWriter = FirestoreRatingWriter(firestore)
+
+    // La sesión es anónima: el perfil del vecino todavía es el de ejemplo.
+    override fun currentUser(): UserProfile = MockLocalHandsData.currentUser
 
     override fun observeProviders(): Flow<List<Provider>> {
         return flow {

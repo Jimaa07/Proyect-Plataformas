@@ -69,7 +69,9 @@ internal class FirestoreLocalHandsReader(
             .map { snapshot ->
                 RepositorySnapshot(
                     value = snapshot.documents.map {
-                        it.toServiceRequest()
+                        it.toServiceRequest().copy(
+                            isPendingSync = it.metadata.hasPendingWrites()
+                        )
                     },
                     isFromCache = snapshot.metadata.isFromCache,
                     hasPendingWrites =

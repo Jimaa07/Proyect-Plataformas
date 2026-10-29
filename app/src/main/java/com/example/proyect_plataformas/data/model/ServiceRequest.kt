@@ -40,5 +40,8 @@ data class ServiceRequest(
     val timeSlot: TimeSlot,
     val status: RequestStatus,
     val rating: Int? = null,
-    val reviewComment: String? = null
+    val reviewComment: String? = null,
+    // true mientras la solicitud solo está guardada en el dispositivo
+    // y todavía no llega al servidor (por ejemplo, en modo avión).
+    val isPendingSync: Boolean = false
 )
