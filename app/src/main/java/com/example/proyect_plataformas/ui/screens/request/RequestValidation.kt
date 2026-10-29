@@ -12,14 +12,6 @@ const val MIN_PROBLEM_LENGTH = 20
 const val MIN_PROBLEM_WORDS = 3
 const val MAX_DAYS_AHEAD = 60L
 
-/** Datos ya validados que la pantalla le entrega al ViewModel. */
-data class RequestDraft(
-    val description: String,
-    val zone: String,
-    val date: LocalDate,
-    val timeSlot: TimeSlot
-)
-
 /** Un mensaje por campo; null significa que ese campo está bien. */
 data class RequestFormErrors(
     val description: String?,

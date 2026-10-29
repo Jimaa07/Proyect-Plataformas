@@ -1,19 +1,11 @@
 package com.example.proyect_plataformas.navigation
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -23,34 +15,45 @@ import androidx.navigation.navArgument
 import com.example.proyect_plataformas.data.model.RequestStatus
 import com.example.proyect_plataformas.data.model.ServiceCategory
 import com.example.proyect_plataformas.ui.components.BottomTab
+import com.example.proyect_plataformas.ui.components.DetailStatusScreen
 import com.example.proyect_plataformas.ui.screens.HomeScreen
+import com.example.proyect_plataformas.ui.screens.HomeViewModel
 import com.example.proyect_plataformas.ui.screens.account.AccountScreen
+import com.example.proyect_plataformas.ui.screens.account.AccountViewModel
 import com.example.proyect_plataformas.ui.screens.orders.OrdersScreen
+import com.example.proyect_plataformas.ui.screens.orders.OrdersViewModel
 import com.example.proyect_plataformas.ui.screens.profile.ProfileScreen
+import com.example.proyect_plataformas.ui.screens.profile.ProfileViewModel
 import com.example.proyect_plataformas.ui.screens.rating.RateServiceScreen
+import com.example.proyect_plataformas.ui.screens.rating.RateServiceViewModel
 import com.example.proyect_plataformas.ui.screens.request.RequestServiceScreen
+import com.example.proyect_plataformas.ui.screens.request.RequestServiceViewModel
 import com.example.proyect_plataformas.ui.screens.results.ResultsScreen
-import com.example.proyect_plataformas.ui.state.LocalHandsViewModel
+import com.example.proyect_plataformas.ui.screens.results.ResultsViewModel
+import com.example.proyect_plataformas.ui.state.DetailState
 import com.example.proyect_plataformas.ui.state.toCompletedService
 
 /**
- * Conecta el ViewModel con las pantallas (MVVM, flujo unidireccional):
- * el estado baja desde viewModel.uiState y los eventos suben como llamadas
- * a funciones del ViewModel. Las pantallas no conocen al ViewModel ni al
- * navController; solo reciben valores y callbacks.
+ * Conecta cada pantalla con su ViewModel (MVVM, flujo unidireccional).
+ * Cada destino obtiene su propio ViewModel con su Factory; los argumentos
+ * de la ruta le llegan por SavedStateHandle. Las pantallas no conocen al
+ * ViewModel ni al navController: solo reciben valores y callbacks.
  */
 @Composable
 fun LocalHandsNavHost(
-    navController: NavHostController = rememberNavController(),
-    viewModel: LocalHandsViewModel = viewModel()
+    navController: NavHostController = rememberNavController()
 ) {
-    // Se deja de observar cuando la app pasa a segundo plano.
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Solo se navega desde la pantalla visible: evita abrir dos veces la misma
+    // pantalla o regresar dos veces cuando se toca rápido durante una transición.
+    fun NavBackStackEntry.navigateIfVisible(route: String) {
+        if (lifecycle.currentState == Lifecycle.State.RESUMED) {
+            navController.navigate(route)
+        }
+    }
 
-    fun openResults(category: ServiceCategory?) {
-        viewModel.openResults(category)
-        navController.navigate(Route.Results.route) {
-            launchSingleTop = true
+    fun NavBackStackEntry.goBackIfVisible() {
+        if (lifecycle.currentState == Lifecycle.State.RESUMED) {
+            navController.popBackStack()
         }
     }
 
@@ -61,11 +64,14 @@ fun LocalHandsNavHost(
                 navController.popBackStack(Route.Home.route, inclusive = false)
             }
 
-            else -> {
-                if (tab == BottomTab.EXPLORE) {
-                    viewModel.openResults(category = null)
+            // Explorar siempre empieza sin filtros, aunque ya hubiera unos Resultados abiertos.
+            BottomTab.EXPLORE -> {
+                navController.navigate(Route.Results.create()) {
+                    popUpTo(Route.Home.route)
                 }
+            }
 
+            else -> {
                 navController.navigate(Route.forTab(tab)) {
                     popUpTo(Route.Home.route)
                     launchSingleTop = true
@@ -79,11 +85,18 @@ fun LocalHandsNavHost(
         startDestination = Route.Home.route
     ) {
 
-        composable(Route.Home.route) {
+        composable(Route.Home.route) { entry ->
+            val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+            fun openResults(category: ServiceCategory?) {
+                entry.navigateIfVisible(Route.Results.create(category))
+            }
+
             HomeScreen(
-                userName = uiState.currentUser.name,
-                recommendedProviders = uiState.recommendedProviders(limit = 3),
-                pendingRatings = uiState.requestsToRate.size,
+                userName = uiState.userName,
+                recommendedProviders = uiState.recommendedProviders,
+                pendingRatings = uiState.pendingRatings,
                 onSearchClick = {
                     openResults(category = null)
                 },
@@ -91,30 +104,46 @@ fun LocalHandsNavHost(
                     openResults(category)
                 },
                 onProviderClick = { providerId ->
-                    navController.navigate(Route.Profile.create(providerId))
+                    entry.navigateIfVisible(Route.Profile.create(providerId))
                 },
                 onPendingRatingsClick = {
                     goToTab(BottomTab.ORDERS)
                 },
-                onTabSelected = ::goToTab
+                onTabSelected = ::goToTab,
+                recommendedStatus = uiState.recommendedStatus,
+                onRetryRecommended = viewModel::retry
             )
         }
 
-        composable(Route.Results.route) {
+        composable(
+            route = Route.Results.route,
+            arguments = listOf(
+                navArgument(Route.Results.ARG_CATEGORY) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { entry ->
+            val viewModel: ResultsViewModel = viewModel(factory = ResultsViewModel.Factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
             ResultsScreen(
-                state = uiState.results,
-                providers = uiState.visibleProviders,
+                state = uiState.filters,
+                providers = uiState.providers,
                 onBackClick = {
-                    navController.popBackStack()
+                    entry.goBackIfVisible()
                 },
                 onProviderClick = { providerId ->
-                    navController.navigate(Route.Profile.create(providerId))
+                    entry.navigateIfVisible(Route.Profile.create(providerId))
                 },
                 onCategorySelected = viewModel::selectCategory,
                 onQueryChanged = viewModel::updateQuery,
                 onFilterSelected = viewModel::selectFilter,
-                onClearFilters = viewModel::clearResultsFilters,
-                onTabSelected = ::goToTab
+                onClearFilters = viewModel::clearFilters,
+                onTabSelected = ::goToTab,
+                status = uiState.status,
+                onRetry = viewModel::retry
             )
         }
 
@@ -126,29 +155,35 @@ fun LocalHandsNavHost(
                     defaultValue = ""
                 }
             )
-        ) { backStackEntry ->
-            val providerId = backStackEntry.arguments
-                ?.getString(Route.Profile.ARG_PROVIDER_ID)
-                .orEmpty()
+        ) { entry ->
+            val viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-            val provider = uiState.providerById(providerId)
+            when (val state = uiState) {
+                is DetailState.Ready -> {
+                    ProfileScreen(
+                        provider = state.data,
+                        onBackClick = {
+                            entry.goBackIfVisible()
+                        },
+                        onRequestServiceClick = {
+                            entry.navigateIfVisible(Route.RequestService.create(state.data.id))
+                        },
+                        notice = state.notice
+                    )
+                }
 
-            if (provider != null) {
-                ProfileScreen(
-                    provider = provider,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    onRequestServiceClick = {
-                        viewModel.startRequest(provider.id)
-                        navController.navigate(Route.RequestService.create(provider.id))
-                    }
-                )
-            } else {
-                NotFoundScreen(
-                    title = "Prestador no encontrado",
-                    onBackClick = { navController.popBackStack() }
-                )
+                else -> {
+                    DetailStatusScreen(
+                        title = "Perfil del profesional",
+                        state = state,
+                        notFoundMessage = "Este profesional ya no está disponible.",
+                        onBackClick = {
+                            entry.goBackIfVisible()
+                        },
+                        onRetry = viewModel::retry
+                    )
+                }
             }
         }
 
@@ -160,47 +195,43 @@ fun LocalHandsNavHost(
                     defaultValue = ""
                 }
             )
-        ) { backStackEntry ->
-            val providerId = backStackEntry.arguments
-                ?.getString(Route.RequestService.ARG_PROVIDER_ID)
-                .orEmpty()
+        ) { entry ->
+            val viewModel: RequestServiceViewModel = viewModel(factory = RequestServiceViewModel.Factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-            val provider = uiState.providerById(providerId)
+            when (val providerState = uiState.providerState) {
+                is DetailState.Ready -> {
+                    RequestServiceScreen(
+                        provider = providerState.data,
+                        form = uiState.form,
+                        formErrors = uiState.formErrors,
+                        today = uiState.today,
+                        onBackClick = {
+                            entry.goBackIfVisible()
+                        },
+                        onDescriptionChanged = viewModel::updateDescription,
+                        onZoneSelected = viewModel::selectZone,
+                        onDateSelected = viewModel::selectDate,
+                        onTimeSlotSelected = viewModel::selectTimeSlot,
+                        onSubmitClick = viewModel::submit,
+                        onFinished = {
+                            // Después de enviar se muestra la solicitud en "Mis pedidos".
+                            goToTab(BottomTab.ORDERS)
+                        }
+                    )
+                }
 
-            if (provider != null) {
-                RequestServiceScreen(
-                    provider = provider,
-                    form = uiState.requestFormFor(provider.id),
-                    formErrors = uiState.requestErrorsFor(provider.id),
-                    today = uiState.today,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    onDescriptionChanged = { text ->
-                        viewModel.updateDescription(provider.id, text)
-                    },
-                    onZoneSelected = { zone ->
-                        viewModel.selectZone(provider.id, zone)
-                    },
-                    onDateSelected = { date ->
-                        viewModel.selectDate(provider.id, date)
-                    },
-                    onTimeSlotSelected = { slot ->
-                        viewModel.selectTimeSlot(provider.id, slot)
-                    },
-                    onSubmitClick = {
-                        viewModel.submitRequest(provider.id)
-                    },
-                    onFinished = {
-                        // Después de enviar se muestra el pedido en "Mis pedidos".
-                        goToTab(BottomTab.ORDERS)
-                    }
-                )
-            } else {
-                NotFoundScreen(
-                    title = "Prestador no encontrado",
-                    onBackClick = { navController.popBackStack() }
-                )
+                else -> {
+                    DetailStatusScreen(
+                        title = "Solicitar servicio",
+                        state = providerState,
+                        notFoundMessage = "Este profesional ya no está disponible.",
+                        onBackClick = {
+                            entry.goBackIfVisible()
+                        },
+                        onRetry = viewModel::retry
+                    )
+                }
             }
         }
 
@@ -212,101 +243,83 @@ fun LocalHandsNavHost(
                     defaultValue = ""
                 }
             )
-        ) { backStackEntry ->
-            val requestId = backStackEntry.arguments
-                ?.getString(Route.RateService.ARG_REQUEST_ID)
-                .orEmpty()
+        ) { entry ->
+            val viewModel: RateServiceViewModel = viewModel(factory = RateServiceViewModel.Factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val requestState = uiState.requestState
 
-            val request = uiState.requestById(requestId)
+            // Solo se califica un servicio pendiente; el que se está calificando
+            // o se acaba de calificar aquí sigue visible hasta la confirmación.
+            val form = uiState.form
+            val canRate = requestState is DetailState.Ready &&
+                    (requestState.data.status == RequestStatus.TO_RATE || form.isSubmitting || form.submitted)
 
-            if (request != null) {
+            if (requestState is DetailState.Ready && canRate) {
                 RateServiceScreen(
-                    service = request.toCompletedService(),
-                    form = uiState.ratingFormFor(requestId),
+                    service = requestState.data.toCompletedService(),
+                    form = uiState.form,
                     onBackClick = {
-                        navController.popBackStack()
+                        entry.goBackIfVisible()
                     },
-                    onStarsSelected = { stars ->
-                        viewModel.selectStars(requestId, stars)
-                    },
-                    onCommentChanged = { comment ->
-                        viewModel.updateComment(requestId, comment)
-                    },
-                    onSubmitClick = {
-                        viewModel.submitRating(requestId)
-                    },
+                    onStarsSelected = viewModel::selectStars,
+                    onCommentChanged = viewModel::updateComment,
+                    onSubmitClick = viewModel::submit,
                     onFinished = {
-                        navController.popBackStack()
+                        entry.goBackIfVisible()
                     }
                 )
             } else {
-                NotFoundScreen(
-                    title = "Servicio no encontrado",
-                    onBackClick = { navController.popBackStack() }
+                DetailStatusScreen(
+                    title = "Calificar servicio",
+                    state = if (requestState is DetailState.Ready) DetailState.NotFound else requestState,
+                    notFoundMessage = if (requestState is DetailState.Ready) {
+                        "Este servicio ya fue calificado."
+                    } else {
+                        "Este servicio ya no existe."
+                    },
+                    onBackClick = {
+                        entry.goBackIfVisible()
+                    },
+                    onRetry = viewModel::retry
                 )
             }
         }
 
-        composable(Route.Orders.route) {
+        composable(Route.Orders.route) { entry ->
+            val viewModel: OrdersViewModel = viewModel(factory = OrdersViewModel.Factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
             OrdersScreen(
                 requests = uiState.requests,
                 onRequestClick = { providerId ->
-                    navController.navigate(Route.Profile.create(providerId))
+                    entry.navigateIfVisible(Route.Profile.create(providerId))
                 },
                 onRateClick = { requestId ->
-                    viewModel.startRating(requestId)
-                    navController.navigate(Route.RateService.create(requestId))
+                    entry.navigateIfVisible(Route.RateService.create(requestId))
                 },
                 onExploreClick = {
                     goToTab(BottomTab.EXPLORE)
                 },
-                onTabSelected = ::goToTab
+                onTabSelected = ::goToTab,
+                status = uiState.status,
+                onRetry = viewModel::retry
             )
         }
 
         composable(Route.Account.route) {
+            val viewModel: AccountViewModel = viewModel(factory = AccountViewModel.Factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
             AccountScreen(
-                user = uiState.currentUser,
-                activeRequests = uiState.requests.count { request ->
-                    request.status == RequestStatus.SENT
-                },
-                pendingRatings = uiState.requestsToRate.size,
-                reviewsWritten = uiState.requests.count { request ->
-                    request.status == RequestStatus.RATED
-                },
+                user = uiState.user,
+                activeRequests = uiState.activeRequests,
+                pendingRatings = uiState.pendingRatings,
+                reviewsWritten = uiState.reviewsWritten,
                 onOrdersClick = {
                     goToTab(BottomTab.ORDERS)
                 },
                 onTabSelected = ::goToTab
             )
-        }
-    }
-}
-
-@Composable
-private fun NotFoundScreen(
-    title: String,
-    onBackClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(
-            space = 12.dp,
-            alignment = Alignment.CenterVertically
-        )
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        TextButton(
-            onClick = onBackClick
-        ) {
-            Text("Regresar")
         }
     }
 }

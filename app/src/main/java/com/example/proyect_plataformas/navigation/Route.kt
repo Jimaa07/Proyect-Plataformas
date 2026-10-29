@@ -1,14 +1,19 @@
 package com.example.proyect_plataformas.navigation
 
+import com.example.proyect_plataformas.data.model.ServiceCategory
 import com.example.proyect_plataformas.ui.components.BottomTab
 
 sealed class Route(val route: String) {
 
     data object Home : Route("home")
 
-    // La categoría elegida no viaja en la ruta: la guarda el ViewModel
-    // (ResultsState) con openResults() antes de navegar.
-    data object Results : Route("results")
+    // La categoría viaja como argumento opcional: sin él se muestran todas.
+    data object Results : Route("results?category={category}") {
+        const val ARG_CATEGORY = "category"
+        fun create(category: ServiceCategory? = null): String {
+            return if (category == null) "results" else "results?category=${category.name}"
+        }
+    }
 
     data object Profile : Route("profile/{providerId}") {
         const val ARG_PROVIDER_ID = "providerId"
@@ -34,7 +39,7 @@ sealed class Route(val route: String) {
         fun forTab(tab: BottomTab): String {
             return when (tab) {
                 BottomTab.HOME -> Home.route
-                BottomTab.EXPLORE -> Results.route
+                BottomTab.EXPLORE -> Results.create()
                 BottomTab.ORDERS -> Orders.route
                 BottomTab.PROFILE -> Account.route
             }

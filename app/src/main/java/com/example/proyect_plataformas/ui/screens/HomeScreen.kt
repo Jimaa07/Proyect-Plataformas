@@ -35,7 +35,11 @@ import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.ServiceCategory
 import com.example.proyect_plataformas.ui.components.AppBottomBar
 import com.example.proyect_plataformas.ui.components.BottomTab
+import com.example.proyect_plataformas.ui.components.ErrorMessage
 import com.example.proyect_plataformas.ui.components.InitialsAvatar
+import com.example.proyect_plataformas.ui.components.LoadingIndicator
+import com.example.proyect_plataformas.ui.components.NoticeBanner
+import com.example.proyect_plataformas.ui.state.ContentStatus
 import com.example.proyect_plataformas.ui.theme.LocalHandsStar
 import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
 
@@ -48,7 +52,9 @@ fun HomeScreen(
     onCategoryClick: (ServiceCategory) -> Unit,
     onProviderClick: (String) -> Unit,
     onPendingRatingsClick: () -> Unit,
-    onTabSelected: (BottomTab) -> Unit
+    onTabSelected: (BottomTab) -> Unit,
+    recommendedStatus: ContentStatus = ContentStatus.Ready(),
+    onRetryRecommended: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -127,14 +133,53 @@ fun HomeScreen(
                 )
             }
 
-            items(
-                items = recommendedProviders,
-                key = { provider -> provider.id }
-            ) { provider ->
-                RecommendedProviderCard(
-                    provider = provider,
-                    onClick = { onProviderClick(provider.id) }
-                )
+            when (recommendedStatus) {
+                ContentStatus.Loading -> {
+                    item {
+                        LoadingIndicator(
+                            message = "Cargando recomendados..."
+                        )
+                    }
+                }
+
+                is ContentStatus.Error -> {
+                    item {
+                        ErrorMessage(
+                            message = recommendedStatus.message,
+                            onRetry = onRetryRecommended
+                        )
+                    }
+                }
+
+                is ContentStatus.Ready -> {
+                    recommendedStatus.notice?.let { notice ->
+                        item {
+                            NoticeBanner(
+                                text = notice
+                            )
+                        }
+                    }
+
+                    if (recommendedProviders.isEmpty()) {
+                        item {
+                            Text(
+                                text = "Todavía no hay profesionales para recomendar.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    items(
+                        items = recommendedProviders,
+                        key = { provider -> provider.id }
+                    ) { provider ->
+                        RecommendedProviderCard(
+                            provider = provider,
+                            onClick = { onProviderClick(provider.id) }
+                        )
+                    }
+                }
             }
         }
     }
