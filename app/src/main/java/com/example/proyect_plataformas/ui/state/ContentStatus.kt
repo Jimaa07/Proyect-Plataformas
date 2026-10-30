@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 
 const val OFFLINE_NOTICE = "Sin conexión: se muestran los datos guardados en el teléfono."
-const val PENDING_SYNC_NOTICE = "Hay cambios guardados en el teléfono que se enviarán al volver la conexión."
+const val PENDING_SYNC_NOTICE =
+    "Hay cambios guardados en el teléfono que se enviarán al volver la conexión."
 
 /**
  * Lo que un ViewModel sabe de un dato que observa en el Repository.

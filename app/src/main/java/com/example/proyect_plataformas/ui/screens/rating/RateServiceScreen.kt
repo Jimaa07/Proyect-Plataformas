@@ -300,6 +300,7 @@ private fun reviewSupportingText(
         "Comentario válido"
     }
 }
+
 @Preview(showBackground = true, heightDp = 800)
 @Composable
 private fun RateServiceScreenPreview() {

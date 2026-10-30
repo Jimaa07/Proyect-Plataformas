@@ -45,10 +45,11 @@ class RateServiceViewModel(
     private val requestState: StateFlow<DetailState<ServiceRequest>> = retryCount
         .observeWithRetry { repository.observeRequestsSnapshot() }
         .map { state ->
-            state.mapData { requests -> requests.firstOrNull { request -> request.id == requestId } }.toDetailState(
-                errorMessage = "No pudimos cargar el servicio.",
-                offlineMessage = "Sin conexión y este servicio no está guardado en el teléfono."
-            )
+            state.mapData { requests -> requests.firstOrNull { request -> request.id == requestId } }
+                .toDetailState(
+                    errorMessage = "No pudimos cargar el servicio.",
+                    offlineMessage = "Sin conexión y este servicio no está guardado en el teléfono."
+                )
         }
         .stateIn(
             scope = viewModelScope,
