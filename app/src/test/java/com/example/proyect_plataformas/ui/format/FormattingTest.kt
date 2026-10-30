@@ -17,6 +17,12 @@ class FormattingTest {
     }
 
     @Test
+    fun reviewDate_fromFirestore_isShownLikeTheOthers() {
+        assertEquals("29 de octubre de 2026", formatReviewDate("2026-10-29"))
+        assertEquals("10 de septiembre de 2026", formatReviewDate("10 de septiembre de 2026"))
+    }
+
+    @Test
     fun initials_takeFirstTwoWords() {
         assertEquals("CM", initialsOf("Carlos Méndez"))
         assertEquals("A", initialsOf("  Ana  "))

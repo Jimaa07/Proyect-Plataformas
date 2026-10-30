@@ -33,8 +33,12 @@ import com.example.proyect_plataformas.data.model.ProviderFilter
 import com.example.proyect_plataformas.data.model.ServiceCategory
 import com.example.proyect_plataformas.ui.components.AppBottomBar
 import com.example.proyect_plataformas.ui.components.BottomTab
+import com.example.proyect_plataformas.ui.components.ErrorMessage
+import com.example.proyect_plataformas.ui.components.LoadingIndicator
+import com.example.proyect_plataformas.ui.components.NoticeBanner
 import com.example.proyect_plataformas.ui.components.ProviderCard
 import com.example.proyect_plataformas.ui.components.ProviderFilterChip
+import com.example.proyect_plataformas.ui.state.ContentStatus
 import com.example.proyect_plataformas.ui.state.ResultsState
 import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
 
@@ -53,7 +57,9 @@ fun ResultsScreen(
     onQueryChanged: (String) -> Unit,
     onFilterSelected: (ProviderFilter) -> Unit,
     onClearFilters: () -> Unit,
-    onTabSelected: (BottomTab) -> Unit
+    onTabSelected: (BottomTab) -> Unit,
+    status: ContentStatus = ContentStatus.Ready(),
+    onRetry: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -89,6 +95,7 @@ fun ResultsScreen(
     ) { innerPadding ->
         ResultsContent(
             providers = providers,
+            status = status,
             selectedCategory = state.category,
             query = state.query,
             selectedFilter = state.filter,
@@ -97,7 +104,8 @@ fun ResultsScreen(
             onQueryChanged = onQueryChanged,
             onFilterSelected = onFilterSelected,
             onClearFilters = onClearFilters,
-            onProviderClick = onProviderClick
+            onProviderClick = onProviderClick,
+            onRetry = onRetry
         )
     }
 }
@@ -105,6 +113,7 @@ fun ResultsScreen(
 @Composable
 private fun ResultsContent(
     providers: List<Provider>,
+    status: ContentStatus,
     selectedCategory: ServiceCategory?,
     query: String,
     selectedFilter: ProviderFilter,
@@ -113,7 +122,8 @@ private fun ResultsContent(
     onQueryChanged: (String) -> Unit,
     onFilterSelected: (ProviderFilter) -> Unit,
     onClearFilters: () -> Unit,
-    onProviderClick: (String) -> Unit
+    onProviderClick: (String) -> Unit,
+    onRetry: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -174,24 +184,53 @@ private fun ResultsContent(
             )
         }
 
-        if (providers.isEmpty()) {
-            item {
-                EmptyResults(
-                    category = selectedCategory,
-                    onClearFilters = onClearFilters
-                )
+        when (status) {
+            ContentStatus.Loading -> {
+                item {
+                    LoadingIndicator(
+                        message = "Buscando profesionales..."
+                    )
+                }
             }
-        } else {
-            items(
-                items = providers,
-                key = { provider -> provider.id }
-            ) { provider ->
-                ProviderCard(
-                    provider = provider,
-                    onClick = {
-                        onProviderClick(provider.id)
+
+            is ContentStatus.Error -> {
+                item {
+                    ErrorMessage(
+                        message = status.message,
+                        onRetry = onRetry
+                    )
+                }
+            }
+
+            is ContentStatus.Ready -> {
+                status.notice?.let { notice ->
+                    item {
+                        NoticeBanner(
+                            text = notice
+                        )
                     }
-                )
+                }
+
+                if (providers.isEmpty()) {
+                    item {
+                        EmptyResults(
+                            category = selectedCategory,
+                            onClearFilters = onClearFilters
+                        )
+                    }
+                } else {
+                    items(
+                        items = providers,
+                        key = { provider -> provider.id }
+                    ) { provider ->
+                        ProviderCard(
+                            provider = provider,
+                            onClick = {
+                                onProviderClick(provider.id)
+                            }
+                        )
+                    }
+                }
             }
         }
     }

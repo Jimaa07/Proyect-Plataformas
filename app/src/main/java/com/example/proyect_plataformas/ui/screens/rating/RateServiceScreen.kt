@@ -74,6 +74,8 @@ fun RateServiceScreen(
             selectedStars = form.stars,
             comment = form.comment,
             isFormValid = form.isValid && !form.submitted,
+            isSubmitting = form.isSubmitting,
+            submitError = form.submitError,
             onStarsSelected = onStarsSelected,
             onCommentChanged = onCommentChanged,
             onSubmitClick = onSubmitClick,
@@ -95,6 +97,8 @@ private fun RateServiceContent(
     selectedStars: Int,
     comment: String,
     isFormValid: Boolean,
+    isSubmitting: Boolean,
+    submitError: String?,
     onStarsSelected: (Int) -> Unit,
     onCommentChanged: (String) -> Unit,
     onSubmitClick: () -> Unit,
@@ -179,10 +183,20 @@ private fun RateServiceContent(
 
         Button(
             onClick = onSubmitClick,
-            enabled = isFormValid,
+            enabled = isFormValid && !isSubmitting,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Enviar reseña")
+            Text(
+                text = if (isSubmitting) "Enviando..." else "Enviar reseña"
+            )
+        }
+
+        submitError?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
         }
 
         if (!isFormValid) {
@@ -286,6 +300,7 @@ private fun reviewSupportingText(
         "Comentario válido"
     }
 }
+
 @Preview(showBackground = true, heightDp = 800)
 @Composable
 private fun RateServiceScreenPreview() {

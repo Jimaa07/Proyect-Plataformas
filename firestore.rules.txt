@@ -1,0 +1,144 @@
+rules_version = '2';
+
+service cloud.firestore {
+    match /databases/{database}/documents {
+
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        function validRating(value) {
+            return value is int && value >= 1 && value <= 5;
+        }
+
+        function validProviderRating(providerId) {
+            let previous = resource.data;
+            let updated = request.resource.data;
+            let requestId = updated.lastRatedRequestId;
+            let requestPath =
+                /databases/$(database)/documents/serviceRequests/$(requestId);
+            let previousRequest = get(requestPath).data;
+            let updatedRequest = getAfter(requestPath).data;
+            let previousTotal = previous.get('ratingTotal', null) == null
+                ? previous.rating * previous.reviewCount
+                : previous.ratingTotal;
+            let newReview = updated.reviews[0];
+
+            return updated.diff(previous).affectedKeys().hasOnly([
+                    'lastRatedRequestId',
+                    'ratingTotal',
+                    'rating',
+                    'reviewCount',
+                    'reviews'
+                ])
+                && previousRequest.ownerId == request.auth.uid
+                && previousRequest.providerId == providerId
+                && previousRequest.status == 'TO_RATE'
+                && updatedRequest.status == 'RATED'
+                && validRating(updatedRequest.rating)
+                && updated.reviewCount == previous.reviewCount + 1
+                && updated.ratingTotal ==
+                    previousTotal + updatedRequest.rating
+                && updated.rating ==
+                    math.round(
+                        updated.ratingTotal / updated.reviewCount * 10.0
+                    ) / 10.0
+                && newReview.keys().hasAll([
+                    'reviewerName', 'rating', 'comment', 'date'
+                ])
+                && newReview.keys().hasOnly([
+                    'reviewerName', 'rating', 'comment', 'date'
+                ])
+                && newReview.reviewerName is string
+                && newReview.reviewerName.size() > 0
+                && newReview.date is string
+                && newReview.date.matches(
+                    '[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                )
+                && newReview.rating == updatedRequest.rating
+                && newReview.comment == updatedRequest.reviewComment
+                && updated.reviews ==
+                    [newReview].concat(previous.get('reviews', []));
+        }
+
+        function validNewRequest() {
+            let incoming = request.resource.data;
+            let provider = get(
+                /databases/$(database)/documents/providers/$(incoming.providerId)
+            ).data;
+            let coverageZones = provider.get('coverageZones', []);
+
+            return incoming.keys().hasAll([
+                    'ownerId', 'providerId', 'providerName',
+                    'category', 'description', 'zone',
+                    'date', 'timeSlot', 'status'
+                ])
+                && incoming.keys().hasOnly([
+                    'ownerId', 'providerId', 'providerName',
+                    'category', 'description', 'zone',
+                    'date', 'timeSlot', 'status',
+                    'rating', 'reviewComment'
+                ])
+                && incoming.ownerId == request.auth.uid
+                && incoming.status == 'SENT'
+                && incoming.get('rating', null) == null
+                && incoming.get('reviewComment', null) == null
+                && incoming.description is string
+                && incoming.description.size() >= 20
+                && incoming.zone is string
+                && incoming.date is string
+                && incoming.date.matches(
+                    '[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                )
+                && incoming.timeSlot in ['MORNING', 'AFTERNOON']
+                && provider.available == true
+                && incoming.providerName == provider.name
+                && incoming.category == provider.category
+                && (
+                    incoming.zone in coverageZones
+                    || (
+                        coverageZones.size() == 0
+                        && incoming.zone == provider.zone
+                    )
+                );
+        }
+
+        function validRequestRating(requestId) {
+            let previous = resource.data;
+            let updated = request.resource.data;
+            let providerAfter = getAfter(
+                /databases/$(database)/documents/providers/$(previous.providerId)
+            ).data;
+
+            return previous.ownerId == request.auth.uid
+                && previous.status == 'TO_RATE'
+                && updated.status == 'RATED'
+                && updated.diff(previous).affectedKeys().hasOnly([
+                    'status', 'rating', 'reviewComment'
+                ])
+                && validRating(updated.rating)
+                && updated.reviewComment is string
+                && updated.reviewComment.size() >= 10
+                && providerAfter.lastRatedRequestId == requestId;
+        }
+
+        match /providers/{providerId} {
+            allow read: if isSignedIn();
+            allow create, delete: if false;
+            allow update: if isSignedIn()
+                && validProviderRating(providerId);
+        }
+
+        match /serviceRequests/{requestId} {
+            allow read: if isSignedIn()
+                && resource.data.ownerId == request.auth.uid;
+
+            allow create: if isSignedIn() && validNewRequest();
+
+            allow update: if isSignedIn()
+                && validRequestRating(requestId);
+
+            allow delete: if false;
+        }
+    }
+}
