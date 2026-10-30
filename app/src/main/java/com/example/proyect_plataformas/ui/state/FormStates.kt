@@ -24,6 +24,10 @@ data class RequestFormState(
     val zone: String? = null,
     val date: LocalDate? = null,
     val timeSlot: TimeSlot? = null,
+    val isLoadingDraft: Boolean = false,
+    val isSavingDraft: Boolean = false,
+    val draftMessage: String? = null,
+    val draftError: String? = null,
     val isSubmitting: Boolean = false,
     val submitError: String? = null,
     val submitted: Boolean = false

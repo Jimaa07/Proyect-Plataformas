@@ -3,18 +3,22 @@ package com.example.proyect_plataformas.data.repository
 import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.NewServiceRequest
 import com.example.proyect_plataformas.data.model.Provider
+import com.example.proyect_plataformas.data.model.RepositorySnapshot
+import com.example.proyect_plataformas.data.model.RequestDraft
 import com.example.proyect_plataformas.data.model.ServiceRequest
+import com.example.proyect_plataformas.data.model.TimeSlot
 import com.example.proyect_plataformas.data.model.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import com.example.proyect_plataformas.data.model.RepositorySnapshot
+import java.time.LocalDate
 
 class FirestoreLocalHandsRepository(
     firestore: FirebaseFirestore,
-    auth: FirebaseAuth
+    auth: FirebaseAuth,
+    private val draftDao: RequestDraftDao
 ) : LocalHandsRepository {
 
     private val session = FirebaseSession(auth)
@@ -60,6 +64,39 @@ class FirestoreLocalHandsRepository(
             val userId = session.requireUserId()
             emitAll(reader.observeRequestsSnapshot(userId))
         }
+    }
+
+    override suspend fun getRequestDraft(providerId: String): RequestDraft? {
+        require(providerId.isNotBlank()) { "Provider ID cannot be blank" }
+
+        val entity = draftDao.getDraft(providerId) ?: return null
+        return RequestDraft(
+            providerId = entity.providerId,
+            description = entity.description,
+            zone = entity.zone,
+            date = entity.date?.let { LocalDate.parse(it) },
+            timeSlot = entity.timeSlot?.let { TimeSlot.valueOf(it) }
+        )
+    }
+
+    override suspend fun saveRequestDraft(draft: RequestDraft) {
+        require(draft.providerId.isNotBlank()) { "Provider ID cannot be blank" }
+
+        // Un borrador conserva también campos incompletos y el texto tal como se escribió.
+        draftDao.saveDraft(
+            RequestDraftEntity(
+                providerId = draft.providerId,
+                description = draft.description,
+                zone = draft.zone,
+                date = draft.date?.toString(),
+                timeSlot = draft.timeSlot?.name
+            )
+        )
+    }
+
+    override suspend fun deleteRequestDraft(providerId: String) {
+        require(providerId.isNotBlank()) { "Provider ID cannot be blank" }
+        draftDao.deleteDraft(providerId)
     }
 
     override suspend fun createRequest(

@@ -213,7 +213,9 @@ fun LocalHandsNavHost(
                         onZoneSelected = viewModel::selectZone,
                         onDateSelected = viewModel::selectDate,
                         onTimeSlotSelected = viewModel::selectTimeSlot,
+                        onSaveDraftClick = viewModel::saveDraft,
                         onSubmitClick = viewModel::submit,
+                        notice = providerState.notice,
                         onFinished = {
                             // Después de enviar se muestra la solicitud en "Mis pedidos".
                             goToTab(BottomTab.ORDERS)

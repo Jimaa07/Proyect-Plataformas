@@ -2,10 +2,11 @@ package com.example.proyect_plataformas.data.repository
 
 import com.example.proyect_plataformas.data.model.NewServiceRequest
 import com.example.proyect_plataformas.data.model.Provider
+import com.example.proyect_plataformas.data.model.RepositorySnapshot
+import com.example.proyect_plataformas.data.model.RequestDraft
 import com.example.proyect_plataformas.data.model.ServiceRequest
 import com.example.proyect_plataformas.data.model.UserProfile
 import kotlinx.coroutines.flow.Flow
-import com.example.proyect_plataformas.data.model.RepositorySnapshot
 
 interface LocalHandsRepository {
 
@@ -23,6 +24,13 @@ interface LocalHandsRepository {
     fun observeProvider(providerId: String): Flow<Provider?>
 
     fun observeRequests(): Flow<List<ServiceRequest>>
+
+    /** Operaciones locales de Room; funcionan sin iniciar sesión ni conectarse. */
+    suspend fun getRequestDraft(providerId: String): RequestDraft?
+
+    suspend fun saveRequestDraft(draft: RequestDraft)
+
+    suspend fun deleteRequestDraft(providerId: String)
 
     suspend fun createRequest(request: NewServiceRequest): String
 

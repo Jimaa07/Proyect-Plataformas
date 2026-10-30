@@ -6,6 +6,6 @@ import com.example.proyect_plataformas.di.AppContainer
 class LocalHandsApplication : Application() {
 
     val appContainer: AppContainer by lazy {
-        AppContainer()
+        AppContainer(this)
     }
 }

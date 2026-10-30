@@ -2,6 +2,8 @@ package com.example.proyect_plataformas.ui.screens.request
 
 import androidx.lifecycle.SavedStateHandle
 import com.example.proyect_plataformas.data.FakeLocalHandsRepository
+import com.example.proyect_plataformas.data.FakeSource
+import com.example.proyect_plataformas.data.model.RequestDraft
 import com.example.proyect_plataformas.data.model.RequestStatus
 import com.example.proyect_plataformas.data.model.TimeSlot
 import com.example.proyect_plataformas.data.ready
@@ -22,6 +24,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -210,5 +213,178 @@ class RequestServiceViewModelTest {
         assertEquals("carlos-mendez", requests.first().providerId)
         assertEquals(RequestStatus.SENT, requests.first().status)
         assertEquals(2, requests.size)
+    }
+
+    @Test
+    fun savedDraft_isRestoredInAnotherViewModel_withCachedProvider() = runTest {
+        val first = newViewModel()
+        first.fillValidRequest()
+        first.saveDraft()
+        repository.providersSource.value = ready(
+            (repository.providersSource.value as FakeSource.Ready).snapshot.value,
+            isFromCache = true
+        )
+
+        val reopened = newViewModel()
+        val form = reopened.uiState.value.form
+
+        assertEquals("El tomacorriente de la cocina no funciona", form.description)
+        assertEquals("Zona 10", form.zone)
+        assertEquals(today.plusDays(2), form.date)
+        assertEquals(TimeSlot.MORNING, form.timeSlot)
+        assertEquals(RequestServiceViewModel.DRAFT_RESTORED, form.draftMessage)
+        assertFalse(form.isLoadingDraft)
+        assertTrue(repository.createdRequests.isEmpty())
+    }
+
+    @Test
+    fun incompleteDraft_isSavedWithoutSending_andOtherProviderStartsEmpty() = runTest {
+        val viewModel = newViewModel()
+        viewModel.updateDescription("  Falta revisar  ")
+
+        viewModel.saveDraft()
+
+        val draft = repository.drafts.getValue("carlos-mendez")
+        assertEquals("  Falta revisar  ", draft.description)
+        assertNull(draft.date)
+        assertNull(draft.zone)
+        assertNull(draft.timeSlot)
+        assertTrue(repository.createdRequests.isEmpty())
+        assertEquals(RequestServiceViewModel.DRAFT_SAVED, viewModel.uiState.value.form.draftMessage)
+        assertEquals("", newViewModel("roberto-garcia").uiState.value.form.description)
+    }
+
+    @Test
+    fun failedDraftSave_keepsTheFields_andCanBeRetried() = runTest {
+        val viewModel = newViewModel()
+        viewModel.fillValidRequest()
+        repository.saveDraftError = IOException("Disco no disponible")
+
+        viewModel.saveDraft()
+
+        assertEquals(RequestServiceViewModel.DRAFT_SAVE_ERROR, viewModel.uiState.value.form.draftError)
+        assertFalse(viewModel.uiState.value.form.isSavingDraft)
+        assertTrue(repository.drafts.isEmpty())
+        assertEquals("El tomacorriente de la cocina no funciona", viewModel.uiState.value.form.description)
+
+        repository.saveDraftError = null
+        viewModel.saveDraft()
+
+        assertNull(viewModel.uiState.value.form.draftError)
+        assertEquals(RequestServiceViewModel.DRAFT_SAVED, viewModel.uiState.value.form.draftMessage)
+    }
+
+    @Test
+    fun failedDraftLoad_finishesLoading_andDoesNotCrash() = runTest {
+        repository.loadDraftError = IOException("No se puede abrir la base")
+
+        val viewModel = newViewModel()
+
+        assertFalse(viewModel.uiState.value.form.isLoadingDraft)
+        assertEquals(RequestServiceViewModel.DRAFT_LOAD_ERROR, viewModel.uiState.value.form.draftError)
+        viewModel.updateDescription("Todavía puedo completar el formulario")
+        assertEquals("Todavía puedo completar el formulario", viewModel.uiState.value.form.description)
+    }
+
+    @Test
+    fun slowDraftLoad_cannotBeOverwrittenByEditingOrSaving() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        repository.loadDraftGate = gate
+        repository.drafts["carlos-mendez"] = RequestDraft("carlos-mendez", description = "Texto guardado")
+        val viewModel = newViewModel()
+
+        viewModel.updateDescription("Texto antes de terminar la lectura")
+        viewModel.saveDraft()
+        viewModel.submit()
+
+        assertTrue(viewModel.uiState.value.form.isLoadingDraft)
+        assertEquals("", viewModel.uiState.value.form.description)
+        assertTrue(repository.createdRequests.isEmpty())
+        gate.complete(Unit)
+        assertEquals("Texto guardado", viewModel.uiState.value.form.description)
+    }
+
+    @Test
+    fun draftSave_isNotConfirmedBeforeTheWriteFinishes_andBlocksSubmit() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        repository.saveDraftGate = gate
+        val viewModel = newViewModel()
+        viewModel.fillValidRequest()
+
+        viewModel.saveDraft()
+        viewModel.submit()
+        viewModel.updateDescription("Cambio durante el guardado")
+
+        assertTrue(viewModel.uiState.value.form.isSavingDraft)
+        assertNull(viewModel.uiState.value.form.draftMessage)
+        assertTrue(repository.drafts.isEmpty())
+        assertTrue(repository.createdRequests.isEmpty())
+        gate.complete(Unit)
+        assertFalse(viewModel.uiState.value.form.isSavingDraft)
+        assertEquals(RequestServiceViewModel.DRAFT_SAVED, viewModel.uiState.value.form.draftMessage)
+        assertEquals("El tomacorriente de la cocina no funciona", repository.drafts.getValue("carlos-mendez").description)
+    }
+
+    @Test
+    fun failedSubmit_keepsTheSavedDraft_butSuccessfulRetryDeletesIt() = runTest {
+        val viewModel = newViewModel()
+        viewModel.fillValidRequest()
+        viewModel.saveDraft()
+        repository.createRequestError = IOException("Sin conexión")
+
+        viewModel.submit()
+        assertTrue(repository.drafts.containsKey("carlos-mendez"))
+
+        repository.createRequestError = null
+        viewModel.submit()
+        assertFalse(repository.drafts.containsKey("carlos-mendez"))
+        assertTrue(viewModel.uiState.value.form.submitted)
+    }
+
+    @Test
+    fun queuedRequest_deletesTheDraftSoItIsNotSubmittedTwice() = runTest {
+        val viewModel = newViewModel()
+        viewModel.fillValidRequest()
+        viewModel.saveDraft()
+        repository.createRequestError = RequestConfirmationPendingException("req-9", IOException())
+
+        viewModel.submit()
+
+        assertTrue(viewModel.uiState.value.form.submitted)
+        assertFalse(repository.drafts.containsKey("carlos-mendez"))
+    }
+
+    @Test
+    fun failedDraftCleanup_stillCountsAsSent_andShowsAWarning() = runTest {
+        val viewModel = newViewModel()
+        viewModel.fillValidRequest()
+        viewModel.saveDraft()
+        repository.deleteDraftError = IOException("No se puede eliminar")
+
+        viewModel.submit()
+        viewModel.submit()
+
+        assertTrue(viewModel.uiState.value.form.submitted)
+        assertNull(viewModel.uiState.value.form.submitError)
+        assertEquals(RequestServiceViewModel.DRAFT_DELETE_ERROR, viewModel.uiState.value.form.draftError)
+        assertEquals(1, repository.createdRequests.size)
+    }
+
+    @Test
+    fun savedDateThatHasPassed_isRestoredButCannotBeSubmitted() = runTest {
+        repository.drafts["carlos-mendez"] = RequestDraft(
+            providerId = "carlos-mendez",
+            description = "El tomacorriente de la cocina no funciona",
+            zone = "Zona 10",
+            date = today.minusDays(1),
+            timeSlot = TimeSlot.MORNING
+        )
+        val viewModel = newViewModel()
+
+        viewModel.submit()
+
+        assertEquals(today.minusDays(1), viewModel.uiState.value.form.date)
+        assertEquals("Esa fecha ya pasó. Elige una a partir de hoy.", viewModel.uiState.value.formErrors.date)
+        assertTrue(repository.createdRequests.isEmpty())
     }
 }

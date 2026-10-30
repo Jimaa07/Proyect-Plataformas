@@ -23,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SelectableDates
@@ -45,6 +46,8 @@ import androidx.compose.ui.unit.sp
 import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.TimeSlot
+import com.example.proyect_plataformas.ui.components.LoadingIndicator
+import com.example.proyect_plataformas.ui.components.NoticeBanner
 import com.example.proyect_plataformas.ui.format.formatDayAndDate
 import com.example.proyect_plataformas.ui.format.formatLongDate
 import com.example.proyect_plataformas.ui.state.RequestFormState
@@ -64,8 +67,10 @@ fun RequestServiceScreen(
     onZoneSelected: (String) -> Unit,
     onDateSelected: (LocalDate) -> Unit,
     onTimeSlotSelected: (TimeSlot) -> Unit,
+    onSaveDraftClick: () -> Unit,
     onSubmitClick: () -> Unit,
-    onFinished: () -> Unit
+    onFinished: () -> Unit,
+    notice: String? = null
 ) {
     // El formulario y su validación viven en el ViewModel (semana 11).
     // Aquí solo queda lo efímero: si el calendario está abierto.
@@ -104,19 +109,16 @@ fun RequestServiceScreen(
         RequestServiceContent(
             provider = provider,
             coverageZones = coverageZones,
-            problemDescription = form.description,
-            zone = form.zone,
-            selectedDate = form.date,
-            selectedTimeSlot = form.timeSlot,
+            form = form,
             formErrors = formErrors,
-            canSubmit = formErrors.isValid && !form.submitted && !form.isSubmitting,
-            isSubmitting = form.isSubmitting,
-            submitError = form.submitError,
+            canSubmit = formErrors.isValid && provider.isAvailable,
+            notice = notice,
             innerPadding = innerPadding,
             onDescriptionChanged = onDescriptionChanged,
             onZoneSelected = onZoneSelected,
             onDateClick = { showDatePicker = true },
             onTimeSlotSelected = onTimeSlotSelected,
+            onSaveDraftClick = onSaveDraftClick,
             onSubmitClick = onSubmitClick
         )
     }
@@ -144,10 +146,15 @@ fun RequestServiceScreen(
                 Text("Solicitud enviada")
             },
             text = {
-                Text(
-                    text = "Le enviamos tu solicitud a ${provider.name} para el " +
-                            "$dateText en la $slotText. Puedes ver su estado en Mis pedidos."
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Le enviamos tu solicitud a ${provider.name} para el " +
+                                "$dateText en la $slotText. Puedes ver su estado en Mis pedidos."
+                    )
+                    form.draftError?.let { message ->
+                        Text(text = message, color = MaterialTheme.colorScheme.error)
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
@@ -217,21 +224,20 @@ private fun RequestDatePickerDialog(
 private fun RequestServiceContent(
     provider: Provider,
     coverageZones: List<String>,
-    problemDescription: String,
-    zone: String?,
-    selectedDate: LocalDate?,
-    selectedTimeSlot: TimeSlot?,
+    form: RequestFormState,
     formErrors: RequestFormErrors,
     canSubmit: Boolean,
-    isSubmitting: Boolean,
-    submitError: String?,
+    notice: String?,
     innerPadding: PaddingValues,
     onDescriptionChanged: (String) -> Unit,
     onZoneSelected: (String) -> Unit,
     onDateClick: () -> Unit,
     onTimeSlotSelected: (TimeSlot) -> Unit,
+    onSaveDraftClick: () -> Unit,
     onSubmitClick: () -> Unit
 ) {
+    val canEdit = !form.isLoadingDraft && !form.isSavingDraft && !form.isSubmitting && !form.submitted
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -250,6 +256,12 @@ private fun RequestServiceContent(
             provider = provider
         )
 
+        notice?.let { message -> NoticeBanner(text = message) }
+
+        if (form.isLoadingDraft) {
+            LoadingIndicator(message = "Recuperando borrador...")
+        }
+
         // ---------- Descripción ----------
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -258,15 +270,16 @@ private fun RequestServiceContent(
                 title = "¿Qué necesitas?"
             )
 
-            val descriptionLength = problemDescription.trim().length
+            val descriptionLength = form.description.trim().length
 
             // El error solo aparece cuando el usuario ya empezó a escribir.
             val showDescriptionError =
-                problemDescription.isNotEmpty() && formErrors.description != null
+                form.description.isNotEmpty() && formErrors.description != null
 
             OutlinedTextField(
-                value = problemDescription,
+                value = form.description,
                 onValueChange = onDescriptionChanged,
+                enabled = canEdit,
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = {
                     Text("Ej. El tomacorriente de la cocina dejó de funcionar desde ayer.")
@@ -281,7 +294,7 @@ private fun RequestServiceContent(
                         Text(
                             text = when {
                                 showDescriptionError -> formErrors.description.orEmpty()
-                                problemDescription.isEmpty() ->
+                                form.description.isEmpty() ->
                                     "Incluye qué falla, desde cuándo y en qué parte de la casa."
                                 else -> "Descripción completa."
                             },
@@ -312,20 +325,21 @@ private fun RequestServiceContent(
             ) {
                 coverageZones.forEach { availableZone ->
                     FilterChip(
-                        selected = zone.equals(availableZone, ignoreCase = true),
+                        selected = form.zone.equals(availableZone, ignoreCase = true),
                         onClick = { onZoneSelected(availableZone) },
+                        enabled = canEdit,
                         label = { Text(availableZone) }
                     )
                 }
             }
 
             FieldHint(
-                text = if (zone == null) {
+                text = if (form.zone == null) {
                     "${provider.name} trabaja solo en estas zonas. Elige una."
                 } else {
-                    formErrors.zone ?: "La visita será en $zone."
+                    formErrors.zone ?: "La visita será en ${form.zone}."
                 },
-                isError = zone != null && formErrors.zone != null
+                isError = form.zone != null && formErrors.zone != null
             )
         }
 
@@ -338,18 +352,19 @@ private fun RequestServiceContent(
             )
 
             DateSelectorField(
-                selectedDate = selectedDate,
-                isError = selectedDate != null && formErrors.date != null,
+                selectedDate = form.date,
+                isError = form.date != null && formErrors.date != null,
+                enabled = canEdit,
                 onClick = onDateClick
             )
 
             FieldHint(
-                text = if (selectedDate == null) {
+                text = if (form.date == null) {
                     "Toca para abrir el calendario. Puedes agendar hasta $MAX_DAYS_AHEAD días adelante."
                 } else {
                     formErrors.date ?: "Fecha disponible."
                 },
-                isError = selectedDate != null && formErrors.date != null
+                isError = form.date != null && formErrors.date != null
             )
         }
 
@@ -367,8 +382,9 @@ private fun RequestServiceContent(
             ) {
                 TimeSlot.entries.forEach { slot ->
                     FilterChip(
-                        selected = selectedTimeSlot == slot,
+                        selected = form.timeSlot == slot,
                         onClick = { onTimeSlotSelected(slot) },
+                        enabled = canEdit,
                         label = {
                             Column(
                                 modifier = Modifier.padding(vertical = 6.dp)
@@ -389,17 +405,30 @@ private fun RequestServiceContent(
             }
         }
 
+        OutlinedButton(
+            onClick = onSaveDraftClick,
+            enabled = canEdit,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = if (form.isSavingDraft) "Guardando borrador..." else "Guardar borrador")
+        }
+
+        form.draftMessage?.let { message -> NoticeBanner(text = message) }
+        form.draftError?.let { message ->
+            Text(text = message, color = MaterialTheme.colorScheme.error)
+        }
+
         Button(
             onClick = onSubmitClick,
-            enabled = canSubmit,
+            enabled = canSubmit && canEdit,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = if (isSubmitting) "Enviando..." else "Enviar solicitud"
+                text = if (form.isSubmitting) "Enviando..." else "Enviar solicitud"
             )
         }
 
-        submitError?.let { message ->
+        form.submitError?.let { message ->
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
@@ -420,11 +449,13 @@ private fun RequestServiceContent(
 private fun DateSelectorField(
     selectedDate: LocalDate?,
     isError: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -589,6 +620,7 @@ private fun RequestServiceScreenPreview() {
             onZoneSelected = {},
             onDateSelected = {},
             onTimeSlotSelected = {},
+            onSaveDraftClick = {},
             onSubmitClick = {},
             onFinished = {}
         )

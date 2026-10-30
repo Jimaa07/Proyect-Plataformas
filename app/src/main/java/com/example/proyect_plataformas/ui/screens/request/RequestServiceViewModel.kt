@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.proyect_plataformas.LocalHandsApplication
 import com.example.proyect_plataformas.data.model.NewServiceRequest
 import com.example.proyect_plataformas.data.model.Provider
+import com.example.proyect_plataformas.data.model.RequestDraft
 import com.example.proyect_plataformas.data.model.TimeSlot
 import com.example.proyect_plataformas.data.repository.LocalHandsRepository
 import com.example.proyect_plataformas.data.repository.RequestConfirmationPendingException
@@ -88,6 +89,77 @@ class RequestServiceViewModel(
         )
     )
 
+    init {
+        restoreDraft()
+    }
+
+    private fun restoreDraft() {
+        if (providerId.isBlank()) return
+
+        _form.update { form -> form.copy(isLoadingDraft = true) }
+
+        viewModelScope.launch {
+            try {
+                val draft = repository.getRequestDraft(providerId)
+                _form.update { form ->
+                    if (draft == null) {
+                        form.copy(isLoadingDraft = false)
+                    } else {
+                        form.copy(
+                            description = draft.description,
+                            zone = draft.zone,
+                            date = draft.date,
+                            timeSlot = draft.timeSlot,
+                            isLoadingDraft = false,
+                            draftMessage = DRAFT_RESTORED
+                        )
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _form.update { form ->
+                    form.copy(isLoadingDraft = false, draftError = DRAFT_LOAD_ERROR)
+                }
+            }
+        }
+    }
+
+    /** Confirma el guardado solo después de que Room termina la escritura. */
+    fun saveDraft() {
+        val current = _form.value
+        if (providerId.isBlank() || current.isLoadingDraft || current.isSavingDraft ||
+            current.isSubmitting || current.submitted
+        ) return
+
+        val draft = RequestDraft(
+            providerId = providerId,
+            description = current.description,
+            zone = current.zone,
+            date = current.date,
+            timeSlot = current.timeSlot
+        )
+
+        _form.update { form ->
+            form.copy(isSavingDraft = true, draftMessage = null, draftError = null)
+        }
+
+        viewModelScope.launch {
+            try {
+                repository.saveRequestDraft(draft)
+                _form.update { form ->
+                    form.copy(isSavingDraft = false, draftMessage = DRAFT_SAVED)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _form.update { form ->
+                    form.copy(isSavingDraft = false, draftError = DRAFT_SAVE_ERROR)
+                }
+            }
+        }
+    }
+
     fun updateDescription(description: String) {
         editForm { current -> current.copy(description = description) }
     }
@@ -109,7 +181,7 @@ class RequestServiceViewModel(
         val provider = (providerState.value as? DetailState.Ready)?.data ?: return
         val current = _form.value
 
-        if (current.submitted || current.isSubmitting) return
+        if (current.submitted || current.isSubmitting || current.isLoadingDraft || current.isSavingDraft) return
 
         // Firestore rechaza solicitudes a prestadores que no están disponibles.
         if (!provider.isAvailable) {
@@ -147,9 +219,27 @@ class RequestServiceViewModel(
                 false
             }
 
+            // El envío y la limpieza son operaciones distintas: si falla Room,
+            // no se informa un envío fallido que pueda duplicar la solicitud.
+            var cleanupError: String? = null
+            if (sent) {
+                try {
+                    repository.deleteRequestDraft(providerId)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    cleanupError = DRAFT_DELETE_ERROR
+                }
+            }
+
             _form.update { form ->
                 if (sent) {
-                    form.copy(isSubmitting = false, submitted = true)
+                    form.copy(
+                        isSubmitting = false,
+                        submitted = true,
+                        draftMessage = null,
+                        draftError = cleanupError
+                    )
                 } else {
                     form.copy(isSubmitting = false, submitError = SUBMIT_ERROR)
                 }
@@ -161,13 +251,17 @@ class RequestServiceViewModel(
         retryCount.update { count -> count + 1 }
     }
 
-    // Mientras se envía o después de enviar, el formulario ya no se edita.
+    // Evita editar mientras se recupera/guarda el borrador o se envía la solicitud.
     private fun editForm(change: (RequestFormState) -> RequestFormState) {
         _form.update { current ->
-            if (current.submitted || current.isSubmitting) {
+            if (current.submitted || current.isSubmitting || current.isLoadingDraft || current.isSavingDraft) {
                 current
             } else {
-                change(current).copy(submitError = null)
+                change(current).copy(
+                    submitError = null,
+                    draftMessage = DRAFT_UNSAVED,
+                    draftError = null
+                )
             }
         }
     }
@@ -190,6 +284,12 @@ class RequestServiceViewModel(
     companion object {
         const val SUBMIT_ERROR = "No pudimos enviar la solicitud. Revisa tu conexión e intenta de nuevo."
         const val UNAVAILABLE_ERROR = "Este prestador no está recibiendo solicitudes por ahora."
+        const val DRAFT_SAVED = "Borrador guardado en este teléfono. Puedes cerrar la aplicación."
+        const val DRAFT_RESTORED = "Borrador recuperado de este teléfono."
+        const val DRAFT_UNSAVED = "Hay cambios sin guardar. Toca Guardar borrador para conservarlos."
+        const val DRAFT_LOAD_ERROR = "No pudimos recuperar el borrador. Vuelve a abrir este formulario para reintentar."
+        const val DRAFT_SAVE_ERROR = "No pudimos guardar el borrador. Conservamos el formulario; intenta guardarlo de nuevo."
+        const val DRAFT_DELETE_ERROR = "La solicitud fue enviada, pero no pudimos eliminar el borrador. No lo envíes otra vez."
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

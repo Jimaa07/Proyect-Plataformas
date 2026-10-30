@@ -5,6 +5,7 @@ import com.example.proyect_plataformas.data.model.CommunityReview
 import com.example.proyect_plataformas.data.model.NewServiceRequest
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.RepositorySnapshot
+import com.example.proyect_plataformas.data.model.RequestDraft
 import com.example.proyect_plataformas.data.model.RequestStatus
 import com.example.proyect_plataformas.data.model.ServiceRequest
 import com.example.proyect_plataformas.data.model.UserProfile
@@ -57,6 +58,12 @@ class FakeLocalHandsRepository(
 
     var createRequestError: Exception? = null
     var submitRatingError: Exception? = null
+    var loadDraftError: Exception? = null
+    var saveDraftError: Exception? = null
+    var deleteDraftError: Exception? = null
+    var loadDraftGate: CompletableDeferred<Unit>? = null
+    var saveDraftGate: CompletableDeferred<Unit>? = null
+    val drafts = mutableMapOf<String, RequestDraft>()
 
     // Si no es null, las escrituras esperan a que la prueba lo complete.
     var writeGate: CompletableDeferred<Unit>? = null
@@ -80,6 +87,23 @@ class FakeLocalHandsRepository(
 
     override fun observeRequests(): Flow<List<ServiceRequest>> =
         observeRequestsSnapshot().map { snapshot -> snapshot.value }
+
+    override suspend fun getRequestDraft(providerId: String): RequestDraft? {
+        loadDraftGate?.await()
+        loadDraftError?.let { error -> throw error }
+        return drafts[providerId]
+    }
+
+    override suspend fun saveRequestDraft(draft: RequestDraft) {
+        saveDraftGate?.await()
+        saveDraftError?.let { error -> throw error }
+        drafts[draft.providerId] = draft
+    }
+
+    override suspend fun deleteRequestDraft(providerId: String) {
+        deleteDraftError?.let { error -> throw error }
+        drafts.remove(providerId)
+    }
 
     override suspend fun createRequest(request: NewServiceRequest): String {
         createdRequests += request
