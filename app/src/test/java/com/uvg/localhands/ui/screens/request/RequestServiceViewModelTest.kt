@@ -3,6 +3,7 @@ package com.uvg.localhands.ui.screens.request
 import androidx.lifecycle.SavedStateHandle
 import com.uvg.localhands.data.FakeLocalHandsRepository
 import com.uvg.localhands.data.FakeSource
+import com.uvg.localhands.data.mock.MockLocalHandsData
 import com.uvg.localhands.data.model.RequestDraft
 import com.uvg.localhands.data.model.RequestStatus
 import com.uvg.localhands.data.model.TimeSlot
@@ -200,6 +201,31 @@ class RequestServiceViewModelTest {
         assertTrue(repository.createdRequests.isEmpty())
         assertEquals(RequestServiceViewModel.UNAVAILABLE_ERROR, viewModel.uiState.value.form.submitError)
         assertFalse(viewModel.uiState.value.form.submitted)
+    }
+
+    // Equivalente a "no agregar productos con stock en 0": Carlos estaba
+    // disponible al abrir el formulario y deja de estarlo antes de enviar.
+    @Test
+    fun providerBecomesUnavailable_requestIsRejectedAndNotCreated() = runTest {
+        val viewModel = newViewModel()
+        viewModel.fillValidRequest()
+
+        repository.providersSource.value = ready(
+            MockLocalHandsData.providers.map { provider ->
+                if (provider.id == "carlos-mendez") {
+                    provider.copy(isAvailable = false)
+                } else {
+                    provider
+                }
+            }
+        )
+        viewModel.submit()
+
+        val form = viewModel.uiState.value.form
+        assertEquals(RequestServiceViewModel.UNAVAILABLE_ERROR, form.submitError)
+        assertFalse(form.submitted)
+        assertTrue(repository.createdRequests.isEmpty())
+        assertEquals(1, repository.observeRequests().first().size)
     }
 
     @Test
