@@ -140,7 +140,7 @@ Revisión estática de las capas de datos, inyección, navegación, ViewModels, 
 | Navegación | Argumentos mediante `SavedStateHandle`, rutas y botón Atrás existentes. No se agregaron destinos ni se cambiaron los identificadores. |
 | Formularios | Se conservan las validaciones existentes; guardar borrador permite campos incompletos. Se deshabilitan entradas y acciones mientras se lee/guarda/envía. |
 | Textos de UI | Se mantiene el estilo existente de textos en composables/estados; migrarlos todos a recursos sería un cambio general. Confirmar si el docente exige internacionalización. |
-| Datos de ejemplo | `MockLocalHandsData` sigue en previews/pruebas y en `currentUser()`: el perfil de vecino es de ejemplo, como documenta el contrato original. Prestadores/pedidos de ejecución provienen de Firestore. No presentar autenticación con perfil real como terminada. |
+| Datos de ejemplo | `MockLocalHandsData` queda solo en previews y pruebas. El perfil del vecino se guarda en Firestore en `users/{uid}` (ver observaciones del docente). Prestadores y pedidos provienen de Firestore. |
 | Modelo de reseñas heredado | Las reseñas se guardan en `providers.reviews` y se actualiza `serviceRequests`; no hay una colección independiente de reseñas. Si el requisito de James exige tres colecciones separadas, sigue pendiente corregirlo con James o justificarlo ante el docente. No se alteró ese modelo en la parte de Jair. |
 | Cuenta / contadores | El ViewModel heredado de Cuenta muestra cero ante fallos de lectura; no expone un estado visible de error. Documentar con Iván si el docente pide ese estado también en Cuenta. |
 
@@ -148,7 +148,13 @@ Revisión estática de las capas de datos, inyección, navegación, ViewModels, 
 
 | Observación exacta del docente | Corrección o justificación | Archivo / evidencia | Estado |
 | --- | --- | --- | --- |
-| PENDIENTE: copiar observación real | PENDIENTE | PENDIENTE | Pendiente |
+| AppTopBar y ProviderFilterChip son componentes reutilizables que no reciben `modifier: Modifier = Modifier`. | Los dos reciben `modifier` y lo aplican a su raíz. Se revisaron los demás componentes públicos de `ui/components`: todos lo reciben. | `ui/components/AppTopBar.kt`, `ui/components/ProviderFilterChip.kt` | Corregido |
+| Las propiedades `data` de `DataState.Ready` y `DetailState.Ready` (ContentStatus.kt) son un nombre vacío de significado. | `DataState.Ready.data` pasa a `content` (lo que llegó del Repository) y `DetailState.Ready.data` a `item` (el elemento de la pantalla de detalle); `mapData` pasa a `mapContent`. | `ui/state/ContentStatus.kt` y sus usos | Corregido |
+| El cambio derivado del task test (indicador de desplazamiento de categorías) quedó pendiente, sin implementar. | Mientras quedan categorías ocultas a la derecha, el borde se desvanece y aparece una flecha que desplaza la fila hasta el final. Si la categoría elegida queda fuera de la pantalla, la fila se mueve para mostrarla. | `ui/screens/results/ResultsScreen.kt` (`CategoryFilters`, `MoreCategoriesHint`) | Corregido |
+| El perfil del vecino (`currentUser()`) sigue saliendo de `MockLocalHandsData` en lugar de una fuente real. | El Repository ofrece `observeCurrentUserSnapshot()` y `saveCurrentUser()` sobre `users/{uid}` en Firestore. Cuenta muestra el perfil, permite crearlo y editarlo; Inicio saluda con ese nombre y la reseña se firma con él. Reglas nuevas para `users`. | `data/repository/FirestoreUserWriter.kt`, `UserDocument.kt`, `ui/screens/account/`, `firestore.rules.txt` | Corregido (publicar las reglas) |
+| Los botones WhatsApp y Llamar del perfil muestran mensajes simulados. | Llamar abre el marcador con `ACTION_DIAL` (no requiere permiso) y WhatsApp abre `https://wa.me/<número>`. Si no hay teléfono o app, se avisa con un Snackbar. | `ui/screens/profile/ProfileScreen.kt`, `ContactLinks.kt` | Corregido |
+| Paquete `com.example.proyect_plataformas` con guion bajo; incumple la convención de paquetes. | El código pasa a `com.uvg.localhands` (main, test y androidTest) y `namespace` también. `applicationId` se conserva porque es el id registrado en Firebase. | Estructura de `app/src`, `app/build.gradle.kts` | Corregido |
+| Restos de plantilla original: ExampleUnitTest, ExampleInstrumentedTest y colores `purple_*`/`teal_*`. | Se eliminan las dos pruebas de ejemplo y `colors.xml`, que nadie usaba. | `app/src/test`, `app/src/androidTest`, `res/values` | Corregido |
 
 ## Task test con una persona externa real
 
@@ -187,7 +193,7 @@ Criterios de éxito: encuentra un prestador adecuado, comprende el perfil, guard
 | Calificar una solicitud `TO_RATE` y actualizar perfil | Dentro | James + Iván; preparar solicitud real para probar. |
 | Guardar y recuperar borrador local por prestador | Dentro | Jair; implementación y tests añadidos, ejecución pendiente. |
 | Carga, error, vacío y lecturas en caché de pantallas principales | Dentro | Iván; validar los casos, incluida la observación de Cuenta. |
-| Login con perfil propio / cambio de cuentas | Fuera | Sesión anónima y vecino de ejemplo actuales. |
+| Login con perfil propio / cambio de cuentas | Fuera | Sesión anónima; el perfil del vecino se guarda en `users/{uid}`, pero no hay inicio de sesión con cuenta propia. |
 | Panel del prestador y cambio de pedido a terminado | Fuera | `TO_RATE` se prepara administrativamente para la demostración. |
 | Pagos, chat, notificaciones y geolocalización | Fuera | No forman parte del flujo implementado. |
 | Envío nuevo desde modo avión sin comprobación de servidor | Fuera | Se conserva el borrador; no se promete envío offline. |
