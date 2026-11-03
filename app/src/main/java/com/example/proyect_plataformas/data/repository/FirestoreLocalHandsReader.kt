@@ -3,6 +3,7 @@ package com.example.proyect_plataformas.data.repository
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.RepositorySnapshot
 import com.example.proyect_plataformas.data.model.ServiceRequest
+import com.example.proyect_plataformas.data.model.UserProfile
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.MetadataChanges
@@ -76,6 +77,30 @@ internal class FirestoreLocalHandsReader(
                     isFromCache = snapshot.metadata.isFromCache,
                     hasPendingWrites =
                         snapshot.metadata.hasPendingWrites()
+                )
+            }
+    }
+
+    /** null mientras el vecino no haya llenado su perfil. */
+    fun observeUserSnapshot(
+        userId: String
+    ): Flow<RepositorySnapshot<UserProfile?>> {
+        require(userId.isNotBlank()) {
+            "User ID cannot be blank"
+        }
+
+        return firestore.collection("users")
+            .document(userId)
+            .snapshots(MetadataChanges.INCLUDE)
+            .map { document ->
+                RepositorySnapshot(
+                    value = if (document.exists()) {
+                        document.toObject(UserDocument::class.java)?.toDomain()
+                    } else {
+                        null
+                    },
+                    isFromCache = document.metadata.isFromCache,
+                    hasPendingWrites = document.metadata.hasPendingWrites()
                 )
             }
     }

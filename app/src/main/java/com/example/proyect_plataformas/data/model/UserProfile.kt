@@ -1,6 +1,6 @@
 package com.example.proyect_plataformas.data.model
 
-/** Vecino que usa la app (mock mientras no haya inicio de sesión). */
+/** Vecino que usa la app; se guarda en Firestore en users/{uid}. */
 data class UserProfile(
     val name: String,
     val zone: String,

@@ -5,6 +5,8 @@ import com.example.proyect_plataformas.data.FakeLocalHandsRepository
 import com.example.proyect_plataformas.data.FakeSource
 import com.example.proyect_plataformas.data.SubmittedRating
 import com.example.proyect_plataformas.data.model.RequestStatus
+import com.example.proyect_plataformas.data.model.UserProfile
+import com.example.proyect_plataformas.data.ready
 import com.example.proyect_plataformas.data.repository.RatingConfirmationPendingException
 import com.example.proyect_plataformas.navigation.Route
 import com.example.proyect_plataformas.ui.state.DetailState
@@ -138,6 +140,33 @@ class RateServiceViewModelTest {
         repository.requestsSource.value = FakeSource.Fails(IOException("Sin respuesta"))
 
         assertTrue(newViewModel().uiState.value.requestState is DetailState.Error)
+    }
+
+    @Test
+    fun withoutProfile_asksToCompleteIt_andDoesNotSave() = runTest {
+        repository.profileSource.value = ready(null)
+        val viewModel = newViewModel()
+        viewModel.selectStars(5)
+        viewModel.updateComment("Excelente trabajo, muy puntual")
+
+        viewModel.submit()
+
+        assertEquals(RateServiceViewModel.PROFILE_REQUIRED_ERROR, viewModel.uiState.value.form.submitError)
+        assertTrue(repository.ratings.isEmpty())
+    }
+
+    @Test
+    fun reviewIsSignedWithTheSavedProfileName() = runTest {
+        repository.profileSource.value = ready(
+            UserProfile(name = "Lucía Pérez", zone = "Zona 12", phone = "", email = "")
+        )
+        val viewModel = newViewModel()
+        viewModel.selectStars(4)
+        viewModel.updateComment("Buen trabajo y puntual")
+
+        viewModel.submit()
+
+        assertEquals("Lucía Pérez", repository.ratings.single().reviewerName)
     }
 
     @Test

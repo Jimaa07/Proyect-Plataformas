@@ -61,6 +61,25 @@ service cloud.firestore {
                     [newReview].concat(previous.get('reviews', []));
         }
 
+        // Perfil del vecino: nombre y zona obligatorios; teléfono y correo
+        // pueden quedar vacíos. Solo esos cuatro campos, todos texto.
+        function validUserProfile() {
+            let profile = request.resource.data;
+
+            return profile.keys().hasAll(['name', 'zone', 'phone', 'email'])
+                && profile.keys().hasOnly(['name', 'zone', 'phone', 'email'])
+                && profile.name is string
+                && profile.name.size() >= 3
+                && profile.name.size() <= 60
+                && profile.zone is string
+                && profile.zone.size() >= 2
+                && profile.zone.size() <= 40
+                && profile.phone is string
+                && profile.phone.size() <= 20
+                && profile.email is string
+                && profile.email.size() <= 80;
+        }
+
         function validNewRequest() {
             let incoming = request.resource.data;
             let provider = get(
@@ -127,6 +146,17 @@ service cloud.firestore {
             allow create, delete: if false;
             allow update: if isSignedIn()
                 && validProviderRating(providerId);
+        }
+
+        // Cada vecino solo lee y escribe su propio perfil.
+        match /users/{userId} {
+            allow read: if isSignedIn() && request.auth.uid == userId;
+
+            allow create, update: if isSignedIn()
+                && request.auth.uid == userId
+                && validUserProfile();
+
+            allow delete: if false;
         }
 
         match /serviceRequests/{requestId} {

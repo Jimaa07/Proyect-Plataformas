@@ -56,6 +56,11 @@ class FakeLocalHandsRepository(
     val providersSource = MutableStateFlow<FakeSource<List<Provider>>>(ready(providers))
     val requestsSource = MutableStateFlow<FakeSource<List<ServiceRequest>>>(ready(requests))
 
+    // Perfil del vecino (users/{uid}); ready(null) = todavía no lo ha llenado.
+    val profileSource = MutableStateFlow<FakeSource<UserProfile?>>(ready(MockLocalHandsData.currentUser))
+    var saveProfileError: Exception? = null
+    val savedProfiles = mutableListOf<UserProfile>()
+
     var createRequestError: Exception? = null
     var submitRatingError: Exception? = null
     var loadDraftError: Exception? = null
@@ -71,7 +76,17 @@ class FakeLocalHandsRepository(
     val createdRequests = mutableListOf<NewServiceRequest>()
     val ratings = mutableListOf<SubmittedRating>()
 
-    override fun currentUser(): UserProfile = MockLocalHandsData.currentUser
+    override fun observeCurrentUserSnapshot(): Flow<RepositorySnapshot<UserProfile?>> =
+        profileSource.emissions()
+
+    override suspend fun saveCurrentUser(profile: UserProfile) {
+        savedProfiles += profile
+        writeGate?.await()
+        saveProfileError?.let { error -> throw error }
+
+        // Igual que Firestore: el listener recibe el perfil nuevo.
+        profileSource.value = ready(profile)
+    }
 
     override fun observeProvidersSnapshot(): Flow<RepositorySnapshot<List<Provider>>> =
         providersSource.emissions()

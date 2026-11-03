@@ -55,6 +55,13 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun withoutProfile_greetsWithoutName() = runTest {
+        repository.profileSource.value = ready(null)
+
+        assertEquals(null, newViewModel().uiState.value.userName)
+    }
+
+    @Test
     fun providersFailure_showsError_andRetryRecovers() = runTest {
         repository.providersSource.value = FakeSource.Fails(IOException("Sin respuesta"))
         val viewModel = newViewModel()

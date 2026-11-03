@@ -1,6 +1,5 @@
 package com.example.proyect_plataformas.data.repository
 
-import com.example.proyect_plataformas.data.mock.MockLocalHandsData
 import com.example.proyect_plataformas.data.model.NewServiceRequest
 import com.example.proyect_plataformas.data.model.Provider
 import com.example.proyect_plataformas.data.model.RepositorySnapshot
@@ -25,9 +24,24 @@ class FirestoreLocalHandsRepository(
     private val reader = FirestoreLocalHandsReader(firestore)
     private val requestWriter = FirestoreRequestWriter(firestore)
     private val ratingWriter = FirestoreRatingWriter(firestore)
+    private val userWriter = FirestoreUserWriter(firestore)
 
-    // La sesión es anónima: el perfil del vecino todavía es el de ejemplo.
-    override fun currentUser(): UserProfile = MockLocalHandsData.currentUser
+    override fun observeCurrentUserSnapshot():
+            Flow<RepositorySnapshot<UserProfile?>> {
+        return flow {
+            val userId = session.requireUserId()
+            emitAll(reader.observeUserSnapshot(userId))
+        }
+    }
+
+    override suspend fun saveCurrentUser(profile: UserProfile) {
+        val userId = session.requireUserId()
+
+        userWriter.saveUser(
+            userId = userId,
+            profile = profile
+        )
+    }
 
     override fun observeProviders(): Flow<List<Provider>> {
         return flow {

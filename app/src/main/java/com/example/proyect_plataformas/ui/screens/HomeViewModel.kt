@@ -21,7 +21,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 data class HomeUiState(
-    val userName: String,
+    // null mientras el vecino no haya llenado su perfil en Firestore.
+    val userName: String? = null,
     val recommendedProviders: List<Provider> = emptyList(),
     val recommendedStatus: ContentStatus = ContentStatus.Loading,
     val pendingRatings: Int = 0
@@ -35,13 +36,15 @@ class HomeViewModel(
 
     val uiState: StateFlow<HomeUiState> = combine(
         retryCount.observeWithRetry { repository.observeProvidersSnapshot() },
-        retryCount.observeWithRetry { repository.observeRequestsSnapshot() }
-    ) { providersState, requestsState ->
+        retryCount.observeWithRetry { repository.observeRequestsSnapshot() },
+        retryCount.observeWithRetry { repository.observeCurrentUserSnapshot() }
+    ) { providersState, requestsState, profileState ->
         val providers = (providersState as? DataState.Ready)?.content.orEmpty()
         val requests = (requestsState as? DataState.Ready)?.content.orEmpty()
+        val profile = (profileState as? DataState.Ready)?.content
 
         HomeUiState(
-            userName = repository.currentUser().name,
+            userName = profile?.name,
             recommendedProviders = recommendedProviders(providers),
             recommendedStatus = providersState.toContentStatus(
                 errorMessage = "No pudimos cargar los recomendados."
@@ -53,7 +56,7 @@ class HomeViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = HomeUiState(userName = repository.currentUser().name)
+        initialValue = HomeUiState()
     )
 
     fun retry() {

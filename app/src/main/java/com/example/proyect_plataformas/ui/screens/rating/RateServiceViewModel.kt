@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -88,25 +89,35 @@ class RateServiceViewModel(
         viewModelScope.launch {
             // Si falla (también si la confirmación tarda demasiado), se puede
             // reintentar: repetir la misma calificación no agrega otra reseña.
-            val saved = try {
-                repository.submitRating(
-                    requestId = requestId,
-                    stars = current.stars,
-                    comment = current.comment.trim(),
-                    reviewerName = repository.currentUser().name
-                )
-                true
+            val failureMessage = try {
+                // La reseña se firma con el nombre del perfil guardado en Firestore.
+                val reviewerName = repository.observeCurrentUserSnapshot()
+                    .first()
+                    .value
+                    ?.name
+
+                if (reviewerName.isNullOrBlank()) {
+                    PROFILE_REQUIRED_ERROR
+                } else {
+                    repository.submitRating(
+                        requestId = requestId,
+                        stars = current.stars,
+                        comment = current.comment.trim(),
+                        reviewerName = reviewerName
+                    )
+                    null
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                false
+                SUBMIT_ERROR
             }
 
             _form.update { form ->
-                if (saved) {
+                if (failureMessage == null) {
                     form.copy(isSubmitting = false, submitted = true)
                 } else {
-                    form.copy(isSubmitting = false, submitError = SUBMIT_ERROR)
+                    form.copy(isSubmitting = false, submitError = failureMessage)
                 }
             }
         }
@@ -128,6 +139,8 @@ class RateServiceViewModel(
 
     companion object {
         const val SUBMIT_ERROR = "No pudimos guardar tu calificación. Intenta de nuevo."
+        const val PROFILE_REQUIRED_ERROR =
+            "Completa tu nombre en la pestaña Perfil para firmar tu reseña."
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

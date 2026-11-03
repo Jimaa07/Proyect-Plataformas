@@ -10,8 +10,15 @@ import kotlinx.coroutines.flow.Flow
 
 interface LocalHandsRepository {
 
-    /** Vecino que usa la app. Todavía no hay inicio de sesión con perfil propio. */
-    fun currentUser(): UserProfile
+    /**
+     * Perfil del vecino con sesión, guardado en Firestore (users/{uid}).
+     * El valor es null mientras todavía no lo haya llenado.
+     */
+    fun observeCurrentUserSnapshot():
+            Flow<RepositorySnapshot<UserProfile?>>
+
+    /** Crea o reemplaza el perfil del vecino con sesión. */
+    suspend fun saveCurrentUser(profile: UserProfile)
 
     fun observeProvidersSnapshot():
             Flow<RepositorySnapshot<List<Provider>>>

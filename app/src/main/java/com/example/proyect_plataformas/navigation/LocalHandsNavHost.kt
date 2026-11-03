@@ -313,10 +313,15 @@ fun LocalHandsNavHost(
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
             AccountScreen(
-                user = uiState.user,
-                activeRequests = uiState.activeRequests,
-                pendingRatings = uiState.pendingRatings,
-                reviewsWritten = uiState.reviewsWritten,
+                state = uiState,
+                onEditProfile = viewModel::startEditing,
+                onCancelEdit = viewModel::cancelEditing,
+                onNameChanged = viewModel::updateName,
+                onZoneChanged = viewModel::updateZone,
+                onPhoneChanged = viewModel::updatePhone,
+                onEmailChanged = viewModel::updateEmail,
+                onSaveProfile = viewModel::saveProfile,
+                onRetry = viewModel::retry,
                 onOrdersClick = {
                     goToTab(BottomTab.ORDERS)
                 },

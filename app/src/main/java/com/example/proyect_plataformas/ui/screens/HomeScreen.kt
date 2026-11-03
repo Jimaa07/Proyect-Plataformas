@@ -45,7 +45,7 @@ import com.example.proyect_plataformas.ui.theme.ProyectplataformasTheme
 
 @Composable
 fun HomeScreen(
-    userName: String,
+    userName: String?,
     recommendedProviders: List<Provider>,
     pendingRatings: Int,
     onSearchClick: () -> Unit,
@@ -86,7 +86,11 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = "Hola, ${userName.substringBefore(" ")}",
+                        text = if (userName.isNullOrBlank()) {
+                            "Hola"
+                        } else {
+                            "Hola, ${userName.trim().substringBefore(" ")}"
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
