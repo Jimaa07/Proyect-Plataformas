@@ -1,5 +1,8 @@
 package com.example.proyect_plataformas.ui.screens.profile
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -63,13 +67,28 @@ fun ProfileScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    // El contacto todavía es simulado: se avisa con un Snackbar en lugar de
+    // Los problemas de contacto se avisan con un Snackbar en lugar de
     // ocupar espacio fijo en la pantalla.
     fun showContactMessage(message: String) {
         scope.launch {
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    // Abre la app del teléfono que corresponde (marcador o WhatsApp).
+    fun openContact(action: String, link: String?, missingAppMessage: String) {
+        if (link == null) {
+            showContactMessage("${provider.name} no tiene un teléfono registrado.")
+            return
+        }
+
+        try {
+            context.startActivity(Intent(action, Uri.parse(link)))
+        } catch (error: ActivityNotFoundException) {
+            showContactMessage(missingAppMessage)
         }
     }
 
@@ -104,10 +123,19 @@ fun ProfileScreen(
             ProfileActionBar(
                 isAvailable = provider.isAvailable,
                 onWhatsAppClick = {
-                    showContactMessage("WhatsApp con ${provider.name}: ${provider.contactPhone} (simulado)")
+                    openContact(
+                        action = Intent.ACTION_VIEW,
+                        link = whatsAppUrl(provider.contactPhone),
+                        missingAppMessage = "No hay una app para abrir WhatsApp en este teléfono."
+                    )
                 },
                 onPhoneClick = {
-                    showContactMessage("Llamando a ${provider.contactPhone} (simulado)")
+                    // ACTION_DIAL solo abre el marcador: no necesita el permiso CALL_PHONE.
+                    openContact(
+                        action = Intent.ACTION_DIAL,
+                        link = dialUri(provider.contactPhone),
+                        missingAppMessage = "No hay una app de teléfono para llamar desde este dispositivo."
+                    )
                 },
                 onRequestServiceClick = onRequestServiceClick
             )
