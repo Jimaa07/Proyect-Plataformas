@@ -15,10 +15,11 @@ import androidx.compose.ui.unit.dp
 fun ProviderFilterChip(
     text: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
