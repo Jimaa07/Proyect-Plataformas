@@ -85,7 +85,7 @@ En macOS/Linux: `bash gradlew :app:assembleDebug :app:testDebugUnitTest :app:lin
 Para probar solo Room en un dispositivo/emulador, incluso sin red:
 
 ```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.example.proyect_plataformas.RequestDraftRepositoryTest"
+.\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.uvg.localhands.RequestDraftRepositoryTest"
 ```
 
 No ejecutes toda la instrumentación esperando que sea independiente de Internet: los tests heredados `FirestoreRepositoryIntegrationTest` necesitan Firebase, datos existentes y, para calificar, cambiar manualmente una solicitud a `TO_RATE` durante la prueba. Las reglas del archivo `firestore.rules.txt` deben estar desplegadas y la autenticación anónima habilitada para el flujo remoto.

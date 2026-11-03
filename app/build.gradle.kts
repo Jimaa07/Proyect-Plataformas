@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.proyect_plataformas"
+    namespace = "com.uvg.localhands"
     compileSdk {
         version = release(37) {
             minorApiLevel = 1
@@ -14,6 +14,8 @@ android {
     }
 
     defaultConfig {
+        // Se conserva el id con el que la app está registrada en Firebase
+        // (google-services.json); el paquete del código es com.uvg.localhands.
         applicationId = "com.example.proyect_plataformas"
         minSdk = 26
         targetSdk = 36

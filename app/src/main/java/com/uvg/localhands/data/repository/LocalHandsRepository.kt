@@ -1,0 +1,50 @@
+package com.uvg.localhands.data.repository
+
+import com.uvg.localhands.data.model.NewServiceRequest
+import com.uvg.localhands.data.model.Provider
+import com.uvg.localhands.data.model.RepositorySnapshot
+import com.uvg.localhands.data.model.RequestDraft
+import com.uvg.localhands.data.model.ServiceRequest
+import com.uvg.localhands.data.model.UserProfile
+import kotlinx.coroutines.flow.Flow
+
+interface LocalHandsRepository {
+
+    /**
+     * Perfil del vecino con sesión, guardado en Firestore (users/{uid}).
+     * El valor es null mientras todavía no lo haya llenado.
+     */
+    fun observeCurrentUserSnapshot():
+            Flow<RepositorySnapshot<UserProfile?>>
+
+    /** Crea o reemplaza el perfil del vecino con sesión. */
+    suspend fun saveCurrentUser(profile: UserProfile)
+
+    fun observeProvidersSnapshot():
+            Flow<RepositorySnapshot<List<Provider>>>
+
+    fun observeRequestsSnapshot():
+            Flow<RepositorySnapshot<List<ServiceRequest>>>
+
+    fun observeProviders(): Flow<List<Provider>>
+
+    fun observeProvider(providerId: String): Flow<Provider?>
+
+    fun observeRequests(): Flow<List<ServiceRequest>>
+
+    /** Operaciones locales de Room; funcionan sin iniciar sesión ni conectarse. */
+    suspend fun getRequestDraft(providerId: String): RequestDraft?
+
+    suspend fun saveRequestDraft(draft: RequestDraft)
+
+    suspend fun deleteRequestDraft(providerId: String)
+
+    suspend fun createRequest(request: NewServiceRequest): String
+
+    suspend fun submitRating(
+        requestId: String,
+        stars: Int,
+        comment: String,
+        reviewerName: String
+    )
+}
