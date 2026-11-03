@@ -31,7 +31,7 @@ class AccountViewModel(
     val uiState: StateFlow<AccountUiState> = MutableStateFlow(0)
         .observeWithRetry { repository.observeRequestsSnapshot() }
         .map { state ->
-            val requests = (state as? DataState.Ready)?.data.orEmpty()
+            val requests = (state as? DataState.Ready)?.content.orEmpty()
 
             AccountUiState(
                 user = repository.currentUser(),

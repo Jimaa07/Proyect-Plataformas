@@ -16,8 +16,9 @@ const val PENDING_SYNC_NOTICE =
  * Lo que un ViewModel sabe de un dato que observa en el Repository.
  *
  * - Loading: todavía no llegó ninguna respuesta (ni del servidor ni de la caché).
- * - Ready: hay datos. isFromCache indica que vienen de la copia guardada en el
- *   teléfono; hasPendingWrites, que hay cambios que todavía no llegan al servidor.
+ * - Ready: llegó el contenido pedido (una lista o un elemento). isFromCache
+ *   indica que viene de la copia guardada en el teléfono; hasPendingWrites,
+ *   que hay cambios que todavía no llegan al servidor.
  * - Failure: no se pudieron leer (sin sesión, reglas, error inesperado).
  */
 sealed interface DataState<out T> {
@@ -25,7 +26,7 @@ sealed interface DataState<out T> {
     data object Loading : DataState<Nothing>
 
     data class Ready<out T>(
-        val data: T,
+        val content: T,
         val isFromCache: Boolean = false,
         val hasPendingWrites: Boolean = false
     ) : DataState<T>
@@ -35,13 +36,13 @@ sealed interface DataState<out T> {
     ) : DataState<Nothing>
 }
 
-/** Cambia el dato de un Ready y conserva Loading, Failure y los metadatos. */
-fun <T, R> DataState<T>.mapData(transform: (T) -> R): DataState<R> {
+/** Cambia el contenido de un Ready y conserva Loading, Failure y los metadatos. */
+fun <T, R> DataState<T>.mapContent(transform: (T) -> R): DataState<R> {
     return when (this) {
         DataState.Loading -> DataState.Loading
         is DataState.Failure -> this
         is DataState.Ready -> DataState.Ready(
-            data = transform(data),
+            content = transform(content),
             isFromCache = isFromCache,
             hasPendingWrites = hasPendingWrites
         )
@@ -68,7 +69,7 @@ sealed interface DetailState<out T> {
     data object Loading : DetailState<Nothing>
 
     data class Ready<out T>(
-        val data: T,
+        val item: T,
         val notice: String? = null
     ) : DetailState<T>
 
@@ -107,7 +108,7 @@ fun <T : Any> DataState<T?>.toDetailState(
         DataState.Loading -> DetailState.Loading
         is DataState.Failure -> DetailState.Error(errorMessage)
         is DataState.Ready -> {
-            val item = data
+            val item = content
 
             when {
                 item != null -> DetailState.Ready(item, notice = noticeFor(this))
@@ -132,7 +133,7 @@ fun <T> Flow<Int>.observeWithRetry(
         source()
             .map<RepositorySnapshot<T>, DataState<T>> { snapshot ->
                 DataState.Ready(
-                    data = snapshot.value,
+                    content = snapshot.value,
                     isFromCache = snapshot.isFromCache,
                     hasPendingWrites = snapshot.hasPendingWrites
                 )

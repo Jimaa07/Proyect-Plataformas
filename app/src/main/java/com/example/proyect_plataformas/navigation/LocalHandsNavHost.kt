@@ -162,12 +162,12 @@ fun LocalHandsNavHost(
             when (val state = uiState) {
                 is DetailState.Ready -> {
                     ProfileScreen(
-                        provider = state.data,
+                        provider = state.item,
                         onBackClick = {
                             entry.goBackIfVisible()
                         },
                         onRequestServiceClick = {
-                            entry.navigateIfVisible(Route.RequestService.create(state.data.id))
+                            entry.navigateIfVisible(Route.RequestService.create(state.item.id))
                         },
                         notice = state.notice
                     )
@@ -202,7 +202,7 @@ fun LocalHandsNavHost(
             when (val providerState = uiState.providerState) {
                 is DetailState.Ready -> {
                     RequestServiceScreen(
-                        provider = providerState.data,
+                        provider = providerState.item,
                         form = uiState.form,
                         formErrors = uiState.formErrors,
                         today = uiState.today,
@@ -254,11 +254,11 @@ fun LocalHandsNavHost(
             // o se acaba de calificar aquí sigue visible hasta la confirmación.
             val form = uiState.form
             val canRate = requestState is DetailState.Ready &&
-                    (requestState.data.status == RequestStatus.TO_RATE || form.isSubmitting || form.submitted)
+                    (requestState.item.status == RequestStatus.TO_RATE || form.isSubmitting || form.submitted)
 
             if (requestState is DetailState.Ready && canRate) {
                 RateServiceScreen(
-                    service = requestState.data.toCompletedService(),
+                    service = requestState.item.toCompletedService(),
                     form = uiState.form,
                     onBackClick = {
                         entry.goBackIfVisible()

@@ -51,7 +51,7 @@ class ProfileViewModelTest {
         val viewModel = newViewModel("carlos-mendez")
 
         val state = viewModel.uiState.value as DetailState.Ready
-        assertEquals("Carlos Méndez", state.data.name)
+        assertEquals("Carlos Méndez", state.item.name)
         assertEquals(null, state.notice)
     }
 
@@ -82,7 +82,7 @@ class ProfileViewModelTest {
         repository.submitRating("req-1", 5, "Excelente trabajo, muy puntual", "Valeria Soto")
 
         val state = viewModel.uiState.value as DetailState.Ready
-        assertEquals(143, state.data.reviewCount)
-        assertEquals("Excelente trabajo, muy puntual", state.data.reviews.first().comment)
+        assertEquals(143, state.item.reviewCount)
+        assertEquals("Excelente trabajo, muy puntual", state.item.reviews.first().comment)
     }
 }

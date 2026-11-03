@@ -37,8 +37,8 @@ class HomeViewModel(
         retryCount.observeWithRetry { repository.observeProvidersSnapshot() },
         retryCount.observeWithRetry { repository.observeRequestsSnapshot() }
     ) { providersState, requestsState ->
-        val providers = (providersState as? DataState.Ready)?.data.orEmpty()
-        val requests = (requestsState as? DataState.Ready)?.data.orEmpty()
+        val providers = (providersState as? DataState.Ready)?.content.orEmpty()
+        val requests = (requestsState as? DataState.Ready)?.content.orEmpty()
 
         HomeUiState(
             userName = repository.currentUser().name,

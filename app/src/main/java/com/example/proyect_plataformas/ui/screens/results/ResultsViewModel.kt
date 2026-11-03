@@ -48,7 +48,7 @@ class ResultsViewModel(
         retryCount.observeWithRetry { repository.observeProvidersSnapshot() },
         filters
     ) { providersState, currentFilters ->
-        val providers = (providersState as? DataState.Ready)?.data.orEmpty()
+        val providers = (providersState as? DataState.Ready)?.content.orEmpty()
 
         ResultsUiState(
             filters = currentFilters,

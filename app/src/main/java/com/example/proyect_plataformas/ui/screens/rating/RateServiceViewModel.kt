@@ -13,7 +13,7 @@ import com.example.proyect_plataformas.data.repository.LocalHandsRepository
 import com.example.proyect_plataformas.navigation.Route
 import com.example.proyect_plataformas.ui.state.DetailState
 import com.example.proyect_plataformas.ui.state.RatingFormState
-import com.example.proyect_plataformas.ui.state.mapData
+import com.example.proyect_plataformas.ui.state.mapContent
 import com.example.proyect_plataformas.ui.state.observeWithRetry
 import com.example.proyect_plataformas.ui.state.toDetailState
 import kotlinx.coroutines.CancellationException
@@ -45,7 +45,7 @@ class RateServiceViewModel(
     private val requestState: StateFlow<DetailState<ServiceRequest>> = retryCount
         .observeWithRetry { repository.observeRequestsSnapshot() }
         .map { state ->
-            state.mapData { requests -> requests.firstOrNull { request -> request.id == requestId } }
+            state.mapContent { requests -> requests.firstOrNull { request -> request.id == requestId } }
                 .toDetailState(
                     errorMessage = "No pudimos cargar el servicio.",
                     offlineMessage = "Sin conexión y este servicio no está guardado en el teléfono."

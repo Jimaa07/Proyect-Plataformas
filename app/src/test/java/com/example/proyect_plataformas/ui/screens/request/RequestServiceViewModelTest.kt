@@ -69,7 +69,7 @@ class RequestServiceViewModelTest {
         val viewModel = newViewModel()
 
         val providerState = viewModel.uiState.value.providerState as DetailState.Ready
-        assertEquals("carlos-mendez", providerState.data.id)
+        assertEquals("carlos-mendez", providerState.item.id)
     }
 
     @Test

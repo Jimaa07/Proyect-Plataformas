@@ -13,7 +13,7 @@ import com.example.proyect_plataformas.data.repository.LocalHandsRepository
 import com.example.proyect_plataformas.navigation.Route
 import com.example.proyect_plataformas.ui.state.DetailState
 import com.example.proyect_plataformas.ui.state.findProvider
-import com.example.proyect_plataformas.ui.state.mapData
+import com.example.proyect_plataformas.ui.state.mapContent
 import com.example.proyect_plataformas.ui.state.observeWithRetry
 import com.example.proyect_plataformas.ui.state.toDetailState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +37,7 @@ class ProfileViewModel(
     val uiState: StateFlow<DetailState<Provider>> = retryCount
         .observeWithRetry { repository.observeProvidersSnapshot() }
         .map { state ->
-            state.mapData { providers -> providers.findProvider(providerId) }.toDetailState(
+            state.mapContent { providers -> providers.findProvider(providerId) }.toDetailState(
                 errorMessage = "No pudimos cargar el perfil.",
                 offlineMessage = "Sin conexión y este perfil no está guardado en el teléfono."
             )

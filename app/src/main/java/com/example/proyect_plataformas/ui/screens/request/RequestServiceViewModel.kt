@@ -19,7 +19,7 @@ import com.example.proyect_plataformas.ui.state.DetailState
 import com.example.proyect_plataformas.ui.state.RequestFormState
 import com.example.proyect_plataformas.ui.state.coverageZonesOf
 import com.example.proyect_plataformas.ui.state.findProvider
-import com.example.proyect_plataformas.ui.state.mapData
+import com.example.proyect_plataformas.ui.state.mapContent
 import com.example.proyect_plataformas.ui.state.observeWithRetry
 import com.example.proyect_plataformas.ui.state.toDetailState
 import kotlinx.coroutines.CancellationException
@@ -57,7 +57,7 @@ class RequestServiceViewModel(
     private val providerState: StateFlow<DetailState<Provider>> = retryCount
         .observeWithRetry { repository.observeProvidersSnapshot() }
         .map { state ->
-            state.mapData { providers -> providers.findProvider(providerId) }.toDetailState(
+            state.mapContent { providers -> providers.findProvider(providerId) }.toDetailState(
                 errorMessage = "No pudimos cargar al prestador.",
                 offlineMessage = "Sin conexión y este prestador no está guardado en el teléfono."
             )
@@ -75,7 +75,7 @@ class RequestServiceViewModel(
         RequestServiceUiState(
             providerState = provider,
             form = currentForm,
-            formErrors = errorsFor(currentForm, (provider as? DetailState.Ready)?.data),
+            formErrors = errorsFor(currentForm, (provider as? DetailState.Ready)?.item),
             today = today
         )
     }.stateIn(
@@ -178,7 +178,7 @@ class RequestServiceViewModel(
 
     /** Envía solo si el formulario es válido y no hay otro envío en curso. */
     fun submit() {
-        val provider = (providerState.value as? DetailState.Ready)?.data ?: return
+        val provider = (providerState.value as? DetailState.Ready)?.item ?: return
         val current = _form.value
 
         if (current.submitted || current.isSubmitting || current.isLoadingDraft || current.isSavingDraft) return

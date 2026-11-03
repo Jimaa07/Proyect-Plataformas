@@ -35,7 +35,7 @@ class OrdersViewModel(
         .observeWithRetry { repository.observeRequestsSnapshot() }
         .map { state ->
             OrdersUiState(
-                requests = ordersForDisplay((state as? DataState.Ready)?.data.orEmpty()),
+                requests = ordersForDisplay((state as? DataState.Ready)?.content.orEmpty()),
                 status = state.toContentStatus(
                     errorMessage = "No pudimos cargar tus pedidos."
                 )
