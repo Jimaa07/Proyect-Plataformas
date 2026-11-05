@@ -19,13 +19,30 @@ android {
         applicationId = "com.example.proyect_plataformas"
         minSdk = 26
         targetSdk = 36
+        // Cada build que se publica en App Distribution sube versionCode;
+        // si no, Android no lo acepta como actualización.
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Todos los integrantes firman el debug con la misma llave del repositorio.
+    // Con la llave de cada computadora (~/.android/debug.keystore) la firma
+    // cambia y Android rechaza el APK como actualización.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             optimization {
                 enable = false
