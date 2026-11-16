@@ -148,7 +148,11 @@ class RequestServiceViewModel(
             try {
                 repository.saveRequestDraft(draft)
                 _form.update { form ->
-                    form.copy(isSavingDraft = false, draftMessage = DRAFT_SAVED)
+                    form.copy(
+                        isSavingDraft = false,
+                        hasUnsavedChanges = false,
+                        draftMessage = DRAFT_SAVED
+                    )
                 }
             } catch (error: CancellationException) {
                 throw error
@@ -219,30 +223,56 @@ class RequestServiceViewModel(
                 false
             }
 
-            // El envío y la limpieza son operaciones distintas: si falla Room,
-            // no se informa un envío fallido que pueda duplicar la solicitud.
-            var cleanupError: String? = null
-            if (sent) {
-                try {
-                    repository.deleteRequestDraft(providerId)
+            // Si no se pudo enviar (por ejemplo, sin conexión), lo escrito se guarda
+            // como borrador para que no se pierda al salir del formulario.
+            if (!sent) {
+                val draftSaved = try {
+                    repository.saveRequestDraft(
+                        RequestDraft(
+                            providerId = providerId,
+                            description = current.description,
+                            zone = current.zone,
+                            date = current.date,
+                            timeSlot = current.timeSlot
+                        )
+                    )
+                    true
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
-                    cleanupError = DRAFT_DELETE_ERROR
+                    false
                 }
+
+                _form.update { form ->
+                    form.copy(
+                        isSubmitting = false,
+                        submitError = if (draftSaved) SUBMIT_ERROR else SUBMIT_ERROR_DRAFT_NOT_SAVED,
+                        hasUnsavedChanges = !draftSaved,
+                        draftMessage = null
+                    )
+                }
+                return@launch
+            }
+
+            // El envío y la limpieza son operaciones distintas: si falla Room,
+            // no se informa un envío fallido que pueda duplicar la solicitud.
+            var cleanupError: String? = null
+            try {
+                repository.deleteRequestDraft(providerId)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                cleanupError = DRAFT_DELETE_ERROR
             }
 
             _form.update { form ->
-                if (sent) {
-                    form.copy(
-                        isSubmitting = false,
-                        submitted = true,
-                        draftMessage = null,
-                        draftError = cleanupError
-                    )
-                } else {
-                    form.copy(isSubmitting = false, submitError = SUBMIT_ERROR)
-                }
+                form.copy(
+                    isSubmitting = false,
+                    submitted = true,
+                    hasUnsavedChanges = false,
+                    draftMessage = null,
+                    draftError = cleanupError
+                )
             }
         }
     }
@@ -259,6 +289,7 @@ class RequestServiceViewModel(
             } else {
                 change(current).copy(
                     submitError = null,
+                    hasUnsavedChanges = true,
                     draftMessage = DRAFT_UNSAVED,
                     draftError = null
                 )
@@ -282,7 +313,12 @@ class RequestServiceViewModel(
     }
 
     companion object {
-        const val SUBMIT_ERROR = "No pudimos enviar la solicitud. Revisa tu conexión e intenta de nuevo."
+        const val SUBMIT_ERROR =
+            "No pudimos enviar la solicitud. Revisa tu conexión e intenta de nuevo. " +
+                    "Guardamos lo que escribiste como borrador en este teléfono."
+        const val SUBMIT_ERROR_DRAFT_NOT_SAVED =
+            "No pudimos enviar la solicitud ni guardarla como borrador. " +
+                    "Revisa tu conexión e intenta de nuevo."
         const val UNAVAILABLE_ERROR = "Este prestador no está recibiendo solicitudes por ahora."
         const val DRAFT_SAVED = "Borrador guardado en este teléfono. Puedes cerrar la aplicación."
         const val DRAFT_RESTORED = "Borrador recuperado de este teléfono."

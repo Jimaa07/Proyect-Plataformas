@@ -171,6 +171,46 @@ class RequestServiceViewModelTest {
     }
 
     @Test
+    fun failedSubmit_savesWhatWasWrittenAsDraft() = runTest {
+        repository.createRequestError = IOException("Sin conexión")
+        val viewModel = newViewModel()
+        viewModel.fillValidRequest()
+
+        viewModel.submit()
+
+        val draft = repository.drafts["carlos-mendez"]
+        assertEquals("El tomacorriente de la cocina no funciona", draft?.description)
+        assertEquals("Zona 10", draft?.zone)
+        assertFalse(viewModel.uiState.value.form.hasUnsavedChanges)
+    }
+
+    @Test
+    fun failedSubmit_whenTheDraftCannotBeSaved_saysSoAndKeepsUnsavedChanges() = runTest {
+        repository.createRequestError = IOException("Sin conexión")
+        repository.saveDraftError = IllegalStateException("Room falló")
+        val viewModel = newViewModel()
+        viewModel.fillValidRequest()
+
+        viewModel.submit()
+
+        val form = viewModel.uiState.value.form
+        assertEquals(RequestServiceViewModel.SUBMIT_ERROR_DRAFT_NOT_SAVED, form.submitError)
+        assertTrue(form.hasUnsavedChanges)
+    }
+
+    @Test
+    fun editing_marksUnsavedChanges_untilTheDraftIsSaved() = runTest {
+        val viewModel = newViewModel()
+        assertFalse(viewModel.uiState.value.form.hasUnsavedChanges)
+
+        viewModel.updateDescription("Se fue la luz en la sala")
+        assertTrue(viewModel.uiState.value.form.hasUnsavedChanges)
+
+        viewModel.saveDraft()
+        assertFalse(viewModel.uiState.value.form.hasUnsavedChanges)
+    }
+
+    @Test
     fun offlineWithoutCache_showsError_notInfiniteLoading() = runTest {
         repository.providersSource.value = ready(emptyList(), isFromCache = true)
 

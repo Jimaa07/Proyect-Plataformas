@@ -1,5 +1,6 @@
 package com.uvg.localhands.ui.screens.request
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +79,25 @@ fun RequestServiceScreen(
         mutableStateOf(false)
     }
 
+    // Antes de salir con cambios sin guardar se pregunta qué hacer con ellos.
+    var showLeaveDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val askBeforeLeaving = form.hasUnsavedChanges && !form.submitted
+
+    val onBackRequested: () -> Unit = {
+        if (askBeforeLeaving) {
+            showLeaveDialog = true
+        } else {
+            onBackClick()
+        }
+    }
+
+    BackHandler(enabled = askBeforeLeaving) {
+        showLeaveDialog = true
+    }
+
     // La zona y el horario se eligen con chips: el usuario no tiene que adivinar texto.
     val coverageZones = remember(provider) {
         coverageZonesOf(provider)
@@ -95,7 +115,7 @@ fun RequestServiceScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = onBackClick
+                        onClick = onBackRequested
                     ) {
                         Text(
                             text = "←",
@@ -120,6 +140,36 @@ fun RequestServiceScreen(
             onTimeSlotSelected = onTimeSlotSelected,
             onSaveDraftClick = onSaveDraftClick,
             onSubmitClick = onSubmitClick
+        )
+    }
+
+    if (showLeaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showLeaveDialog = false },
+            title = { Text("¿Salir sin guardar?") },
+            text = {
+                Text("Tienes cambios en la solicitud que no están guardados en el borrador.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLeaveDialog = false
+                        onSaveDraftClick()
+                    }
+                ) {
+                    Text("Guardar borrador")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showLeaveDialog = false
+                        onBackClick()
+                    }
+                ) {
+                    Text("Salir sin guardar")
+                }
+            }
         )
     }
 
@@ -295,14 +345,15 @@ private fun RequestServiceContent(
                             text = when {
                                 showDescriptionError -> formErrors.description.orEmpty()
                                 form.description.isEmpty() ->
-                                    "Incluye qué falla, desde cuándo y en qué parte de la casa."
+                                    "Mínimo $MIN_PROBLEM_LENGTH caracteres. Incluye qué falla, " +
+                                            "desde cuándo y en qué parte de la casa."
                                 else -> "Descripción completa."
                             },
                             modifier = Modifier.weight(1f)
                         )
 
                         if (descriptionLength < MIN_PROBLEM_LENGTH) {
-                            Text("$descriptionLength/$MIN_PROBLEM_LENGTH")
+                            Text("$descriptionLength/$MIN_PROBLEM_LENGTH mín.")
                         }
                     }
                 }
@@ -428,12 +479,20 @@ private fun RequestServiceContent(
             )
         }
 
+        // El error de envío se muestra en una tarjeta para que no pase desapercibido.
         form.submitError?.let { message ->
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error
-            )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
         }
 
         // En lugar de un mensaje genérico, se lista exactamente qué falta.

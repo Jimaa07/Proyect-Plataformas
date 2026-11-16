@@ -28,6 +28,8 @@ data class RequestFormState(
     val isSavingDraft: Boolean = false,
     val draftMessage: String? = null,
     val draftError: String? = null,
+    // Hay cambios que todavía no están en el borrador de Room.
+    val hasUnsavedChanges: Boolean = false,
     val isSubmitting: Boolean = false,
     val submitError: String? = null,
     val submitted: Boolean = false
