@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.ksp)
 }
 
@@ -21,8 +22,8 @@ android {
         targetSdk = 36
         // Cada build que se publica en App Distribution sube versionCode;
         // si no, Android no lo acepta como actualización.
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -84,6 +85,8 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.firebase.auth)
+    // Errores no fatales del Repository (ReportingLocalHandsRepository).
+    implementation(libs.firebase.crashlytics)
     // Borradores locales: no necesitan conexión ni una sesión de Firebase.
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

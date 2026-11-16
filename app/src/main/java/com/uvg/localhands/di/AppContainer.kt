@@ -2,10 +2,13 @@ package com.uvg.localhands.di
 
 import android.content.Context
 import androidx.room.Room
+import com.uvg.localhands.data.repository.CrashlyticsErrorReporter
 import com.uvg.localhands.data.repository.FirestoreLocalHandsRepository
 import com.uvg.localhands.data.repository.LocalHandsDatabase
 import com.uvg.localhands.data.repository.LocalHandsRepository
+import com.uvg.localhands.data.repository.ReportingLocalHandsRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.firestore.FirebaseFirestore
 
 class AppContainer(context: Context) {
@@ -21,11 +24,15 @@ class AppContainer(context: Context) {
         ).build()
     }
 
+    // Cada error del Repository se registra en Crashlytics como no fatal.
     val repository: LocalHandsRepository by lazy {
-        FirestoreLocalHandsRepository(
-            firestore = FirebaseFirestore.getInstance(),
-            auth = FirebaseAuth.getInstance(),
-            draftDao = database.requestDraftDao()
+        ReportingLocalHandsRepository(
+            delegate = FirestoreLocalHandsRepository(
+                firestore = FirebaseFirestore.getInstance(),
+                auth = FirebaseAuth.getInstance(),
+                draftDao = database.requestDraftDao()
+            ),
+            reporter = CrashlyticsErrorReporter(FirebaseCrashlytics.getInstance())
         )
     }
 }
